@@ -1432,10 +1432,6 @@ function renderAdminZevovi() {
 // ZEV KREIRANJE / UREĐIVANJE
 // ═══════════════════════════════════════════════════════
 
-document.getElementById('zev-auto-zaduzenje').addEventListener('change', function() {
-  document.getElementById('zev-dan-wrap').style.display = this.checked ? 'block' : 'none';
-});
-
 function snimiZev() {
   const naziv = document.getElementById('zev-naziv').value.trim();
   const adresa = document.getElementById('zev-adresa').value.trim();

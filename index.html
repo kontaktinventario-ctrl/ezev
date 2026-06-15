@@ -590,6 +590,12 @@ body.admin .admin-only-block { display: block; }
     </nav>
 
     <div class="topbar-right">
+      <div class="user-chip vlasnik-only" id="zev-selector-wrap" style="display:none;padding:0;background:transparent;border:none">
+        <select id="aktivni-zev-select" onchange="promijeniAktivniZev(this.value)" style="padding:6px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;cursor:pointer"></select>
+      </div>
+      <button class="btn-odjava vlasnik-only" id="btn-poveci-nalog" style="display:none" onclick="otvoriPoveciNalog()">
+        <i class="ti ti-link"></i> Poveži nepokretnost
+      </button>
       <div class="user-chip">
         <div class="user-avatar" id="user-avatar">?</div>
         <span id="user-display">—</span>
@@ -711,7 +717,7 @@ body.admin .admin-only-block { display: block; }
           <div class="page-title">Prijava problema</div>
           <div class="page-sub">Vaše prijave i njihov status</div>
         </div>
-        <button class="btn btn-primary" onclick="openModal('modal-nova-prijava')">
+        <button class="btn btn-primary" onclick="document.getElementById('prijava-zev-prikaz').value = ZEVOVI[currentUser?.aktivniZev] || ''; openModal('modal-nova-prijava')">
           <i class="ti ti-plus"></i> Nova prijava
         </button>
       </div>
@@ -731,19 +737,41 @@ body.admin .admin-only-block { display: block; }
     <div class="page" id="page-izvjestaji">
       <div class="page-header">
         <div class="page-title">Izvještaji</div>
-        <div class="page-sub">Finansijski pregled zajednice</div>
+        <div class="page-sub" id="izv-page-sub">Finansijski pregled zajednice</div>
       </div>
 
-      <!-- Filter bar -->
-      <div class="card">
-        <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap">
-          <div class="field" style="margin:0; flex:1; min-width:160px">
+      <!-- ADMIN: Unos podataka -->
+      <div id="izv-admin-panel" style="display:none">
+        <div class="card" style="border:1px solid rgba(79,127,255,0.25);background:rgba(79,127,255,0.05);margin-bottom:20px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+            <i class="ti ti-edit" style="color:var(--accent);font-size:18px"></i>
+            <div style="font-size:14px;font-weight:600">Unos finansijskih podataka</div>
+          </div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px">
+            <div class="field" style="margin:0;flex:1;min-width:180px">
+              <label>ZEV</label>
+              <select id="admin-izv-zev" onchange="azurirajAdminIzvZev()"></select>
+            </div>
+            <div class="field" style="margin:0">
+              <label>Period (MM/GGGG)</label>
+              <input type="text" id="admin-izv-period" value="05/2026" placeholder="05/2026" style="width:120px">
+            </div>
+            <button class="btn btn-primary" onclick="otvoriUnosIzvjestaja()">
+              <i class="ti ti-plus"></i> Unesi podatke
+            </button>
+          </div>
+
+          <!-- Lista unesenih podataka -->
+          <div id="admin-izv-lista"></div>
+        </div>
+      </div>
+
+      <!-- VLASNIK/ADMIN: Prikaz izvještaja -->
+      <div class="card" id="izv-filter-card">
+        <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+          <div class="field" style="margin:0;flex:1;min-width:160px">
             <label>ZEV</label>
-            <select id="izv-zev">
-              <option value="fer">ZEV Ferhadija 12</option>
-              <option value="oba">ZEV Obala 5</option>
-              <option value="ske">ZEV Skenderija 22</option>
-            </select>
+            <select id="izv-zev"></select>
           </div>
           <div class="field" style="margin:0">
             <label>Tip</label>
@@ -769,30 +797,23 @@ body.admin .admin-only-block { display: block; }
         <!-- Stats -->
         <div class="stats-grid" id="izv-stats"></div>
 
-        <!-- Tabela po mjesecima (samo godišnji) -->
+        <!-- Godišnji — po mjesecima -->
         <div id="izv-tabela-godisnji" class="card" style="display:none">
           <div class="card-title"><i class="ti ti-calendar"></i> Pregled po mjesecima</div>
           <div class="table-wrap">
             <table>
               <thead>
-                <tr><th>Mjesec</th><th>Uplate</th><th>Isplate</th><th>Razlika</th></tr>
+                <tr><th>Period</th><th>Uplate</th><th>Isplate</th><th>Stanje žiro računa</th><th>Dugovanja</th><th>Razlika</th></tr>
               </thead>
               <tbody id="izv-mjeseci-body"></tbody>
             </table>
           </div>
         </div>
 
-        <!-- Transakcije -->
-        <div class="card">
-          <div class="card-title"><i class="ti ti-list"></i> Detalji transakcija</div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr><th>Datum</th><th>Opis</th><th>Prostor</th><th>Tip</th><th style="text-align:right">Iznos</th></tr>
-              </thead>
-              <tbody id="izv-transakcije-body"></tbody>
-            </table>
-          </div>
+        <!-- Miesečni detalj -->
+        <div id="izv-miesecni-detalj" class="card" style="display:none">
+          <div class="card-title"><i class="ti ti-list"></i> Detalji za period</div>
+          <div id="izv-detalj-content"></div>
         </div>
       </div>
     </div>
@@ -863,11 +884,7 @@ body.admin .admin-only-block { display: block; }
     <div class="modal-title"><i class="ti ti-tool" style="color:var(--accent)"></i> Nova prijava problema</div>
     <div class="field">
       <label>ZEV</label>
-      <select id="prijava-zev">
-        <option value="fer">ZEV Ferhadija 12</option>
-        <option value="oba">ZEV Obala 5</option>
-        <option value="ske">ZEV Skenderija 22</option>
-      </select>
+      <input type="text" id="prijava-zev-prikaz" readonly style="opacity:0.7">
     </div>
     <div class="field">
       <label>Naslov problema</label>
@@ -926,15 +943,9 @@ body.admin .admin-only-block { display: block; }
         <input type="text" id="zev-adresa" placeholder="Ulica i broj, Grad">
       </div>
     </div>
-    <div class="field-row">
-      <div class="field">
-        <label>Žiro račun</label>
-        <input type="text" id="zev-ziro" placeholder="572-536-00003179-46">
-      </div>
-      <div class="field">
-        <label>Akontacioni bod (KM/m²)</label>
-        <input type="number" id="zev-akont" step="0.01" placeholder="0.25">
-      </div>
+    <div class="field">
+      <label>Žiro račun</label>
+      <input type="text" id="zev-ziro" placeholder="572-536-00003179-46">
     </div>
     <div class="field-row">
       <div class="field">
@@ -954,18 +965,6 @@ body.admin .admin-only-block { display: block; }
       <div class="field">
         <label>Broj poslovnih</label>
         <input type="number" id="zev-br-poslovnih" min="0" value="0">
-      </div>
-    </div>
-    <div class="field">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:13px;color:var(--text2)">
-        <input type="checkbox" id="zev-auto-zaduzenje" style="width:16px;height:16px;accent-color:var(--accent)">
-        Automatsko zaduženje (svaki mjesec)
-      </label>
-    </div>
-    <div id="zev-dan-wrap" style="display:none">
-      <div class="field">
-        <label>Dan u mjesecu za zaduženje</label>
-        <input type="number" id="zev-dan-zaduzenja" min="1" max="28" value="3">
       </div>
     </div>
     <input type="hidden" id="zev-edit-id">
@@ -1118,6 +1117,78 @@ body.admin .admin-only-block { display: block; }
   </div>
 </div>
 
+<!-- Modal: Unos finansijskih podataka (admin) -->
+<div class="modal-overlay" id="modal-unos-izvjestaja">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-title"><i class="ti ti-chart-bar" style="color:var(--accent)"></i> Unos finansijskih podataka</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:16px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius)">
+      <span id="modal-izv-zev-naziv">—</span> · <span id="modal-izv-period-prikaz">—</span>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Ukupno uplate (KM)</label>
+        <input type="number" id="unos-uplate" step="0.01" min="0" placeholder="0.00">
+      </div>
+      <div class="field">
+        <label>Ukupno isplate (KM)</label>
+        <input type="number" id="unos-isplate" step="0.01" min="0" placeholder="0.00">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Stanje žiro računa (KM)</label>
+        <input type="number" id="unos-stanje" step="0.01" placeholder="0.00">
+      </div>
+      <div class="field">
+        <label>Ukupna dugovanja (KM)</label>
+        <input type="number" id="unos-dugovanja" step="0.01" min="0" placeholder="0.00">
+      </div>
+    </div>
+    <div class="field">
+      <label>Napomena <span style="opacity:0.5">(opciono)</span></label>
+      <textarea id="unos-napomena" placeholder="Npr. redovni troškovi, vanredni popravci..." rows="2"></textarea>
+    </div>
+    <input type="hidden" id="unos-zev-id">
+    <input type="hidden" id="unos-period">
+    <input type="hidden" id="unos-edit-id">
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-unos-izvjestaja')">Odustani</button>
+      <button class="btn btn-primary" onclick="snimiUnosIzvjestaja()">
+        <i class="ti ti-check"></i> Snimi
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Poveži nepokretnost -->
+<div class="modal-overlay" id="modal-poveci-nalog">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-title"><i class="ti ti-link" style="color:var(--accent)"></i> Poveži nepokretnost</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:18px">
+      Ako imate stan, garažu ili poslovni prostor u istom ili drugom ZEV-u, unesite njegov korisnički kod i lozinku da ga povežete sa ovim nalogom.
+    </p>
+    <div class="field">
+      <label>Korisnički kod (5 cifara)</label>
+      <input type="text" id="poveci-kod" maxlength="5" placeholder="npr. 10044">
+    </div>
+    <div class="field">
+      <label>Lozinka</label>
+      <input type="password" id="poveci-lozinka" placeholder="••••••••">
+    </div>
+    <div id="poveci-greska" style="display:none;background:var(--red-bg);border:1px solid rgba(240,90,90,0.25);border-radius:var(--radius);padding:10px 14px;font-size:13px;color:var(--red);margin-bottom:4px"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-poveci-nalog')">Odustani</button>
+      <button class="btn btn-primary" onclick="poveziNepokretnost()"><i class="ti ti-check"></i> Poveži</button>
+    </div>
+
+    <!-- Lista povezanih nepokretnosti -->
+    <div style="margin-top:24px;padding-top:18px;border-top:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);margin-bottom:10px">Povezane nepokretnosti</div>
+      <div id="poveci-lista"></div>
+    </div>
+  </div>
+</div>
+
 <!-- Toast kontejner -->
 <div class="toast-container" id="toast-container"></div>
 
@@ -1129,9 +1200,10 @@ body.admin .admin-only-block { display: block; }
 const ADMIN = { username: 'clickpay', password: 'BananaCPS0211!' };
 
 const KORISNICI = [
-  { kod: '10042', password: 'Vlasnik123!', ime: 'Dušan Simović', zev: 'oba' },
-  { kod: '10043', password: 'Vlasnik456!', ime: 'Ana Jovanović', zev: 'fer' },
-  { kod: '10044', password: 'Vlasnik789!', ime: 'Petar Petrović', zev: 'fer' },
+  { kod: '10042', password: 'Vlasnik123!', ime: 'Dušan Simović' },
+  { kod: '10043', password: 'Vlasnik456!', ime: 'Ana Jovanović' },
+  { kod: '10044', password: 'Vlasnik789!', ime: 'Petar Petrović' },
+  { kod: '10045', password: 'Vlasnik999!', ime: 'Dušan Simović' },
 ];
 
 const ZEVOVI = {
@@ -1139,6 +1211,9 @@ const ZEVOVI = {
   oba: 'ZEV Obala Luke Vukalovića 67',
   ske: 'ZEV Skenderija 22',
 };
+
+// Grupe povezanih korisničkih kodova: kod -> [svi povezani kodovi uklj. sebe]
+const POVEZANI_NALOZI = {};
 
 let DB = {
   ankete: [
@@ -1207,18 +1282,14 @@ DB.zevovi = [
     naziv: 'ZEV Ferhadija 12',
     adresa: 'Ul. Ferhadija 12, Sarajevo',
     ziroRacun: '123-456-00001234-56',
-    akontacioniBod: 0.20,
     brStanova: 24, brGaraza: 8, brPodruma: 12, brPoslovnih: 2,
-    autoZaduzenje: true, danZaduzenja: 3,
   },
   {
     id: 'oba',
     naziv: 'ZEV Obala Luke Vukalovića 67',
     adresa: 'Obala Luke Vukalovića 67, Trebinje',
     ziroRacun: '572-536-00003179-46',
-    akontacioniBod: 0.25,
     brStanova: 36, brGaraza: 12, brPodruma: 20, brPoslovnih: 3,
-    autoZaduzenje: false, danZaduzenja: null,
   },
 ];
 
@@ -1255,9 +1326,47 @@ DB.vlasnici = [
     telefon: '', email: '',
     emailDostava: false, kod: '10044', lozinka: 'Vlasnik789!',
   },
+  {
+    id: 'v5', zevId: 'fer',
+    sifra: 'ST-010', oznaka: 'Stan 10/III', tip: 'STAN', povrsina: 52.00,
+    imeVlasnika: 'Dušan', prezimeVlasnika: 'Simović',
+    imeKorisnika: '', prezimeKorisnika: '',
+    telefon: '+387 65 123 456', email: 'dusan.simovic@email.com',
+    emailDostava: true, kod: '10045', lozinka: 'Vlasnik999!',
+  },
+];
+
+// Finansijski podaci koje unosi admin (po ZEV-u i periodu)
+DB.finansijskiPodaci = [
+  { id: 'f1', zevId: 'fer', period: '05/2026', uplate: 1420.00, isplate: 980.00, stanje: 4820.00, dugovanja: 241.60, napomena: 'Redovni troškovi' },
+  { id: 'f2', zevId: 'fer', period: '04/2026', uplate: 1380.00, isplate: 1050.00, stanje: 4380.00, dugovanja: 192.00, napomena: '' },
+  { id: 'f3', zevId: 'fer', period: '03/2026', uplate: 1290.00, isplate: 890.00, stanje: 4050.00, dugovanja: 96.00, napomena: 'Vanredni popravak lifta' },
+  { id: 'f4', zevId: 'oba', period: '05/2026', uplate: 2640.00, isplate: 1800.00, stanje: 7200.00, dugovanja: 420.00, napomena: '' },
+  { id: 'f5', zevId: 'oba', period: '04/2026', uplate: 2500.00, isplate: 1950.00, stanje: 6360.00, dugovanja: 315.00, napomena: '' },
 ];
 
 let aktivniZevId = null;
+
+function popuniZevSelecte() {
+  const selekti = ['izv-zev', 'admin-izv-zev'];
+  selekti.forEach(selId => {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    sel.innerHTML = '';
+    const zevoviZaPrikaz = currentUser?.tip === 'vlasnik'
+      ? (currentUser.zevovi || [])
+      : DB.zevovi;
+    zevoviZaPrikaz.forEach(z => {
+      const opt = document.createElement('option');
+      opt.value = z.id; opt.textContent = z.naziv;
+      sel.appendChild(opt);
+    });
+    // Za vlasnika, podrazumijevano selektuj aktivni ZEV
+    if (selId === 'izv-zev' && currentUser?.tip === 'vlasnik' && currentUser.aktivniZev) {
+      sel.value = currentUser.aktivniZev;
+    }
+  });
+}
 
 // ═══════════════════════════════════════════════════════
 // RENDER ZEV-OVI LISTA
@@ -1293,8 +1402,6 @@ function renderAdminZevovi() {
 
           <div style="display:flex;gap:20px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap">
             <div style="font-size:12px;color:var(--text2)"><span style="color:var(--text3)">Žiro račun:</span> <span style="font-family:var(--font-mono);font-size:11px">${z.ziroRacun}</span></div>
-            <div style="font-size:12px;color:var(--text2)"><span style="color:var(--text3)">Akont. bod:</span> <strong>${Number(z.akontacioniBod).toFixed(2)} KM/m²</strong></div>
-            <div style="font-size:12px;color:var(--text2)"><span style="color:var(--text3)">Zaduženje:</span> ${z.autoZaduzenje ? `<span style="color:var(--green)">Auto — ${z.danZaduzenja}. u mj.</span>` : '<span style="color:var(--text3)">Ručno</span>'}</div>
           </div>
 
           <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
@@ -1333,32 +1440,24 @@ function snimiZev() {
   const naziv = document.getElementById('zev-naziv').value.trim();
   const adresa = document.getElementById('zev-adresa').value.trim();
   const ziro = document.getElementById('zev-ziro').value.trim();
-  const akont = parseFloat(document.getElementById('zev-akont').value);
   const brStanova = parseInt(document.getElementById('zev-br-stanova').value) || 0;
   const brGaraza = parseInt(document.getElementById('zev-br-garaza').value) || 0;
   const brPodruma = parseInt(document.getElementById('zev-br-podruma').value) || 0;
   const brPoslovnih = parseInt(document.getElementById('zev-br-poslovnih').value) || 0;
-  const autoZaduzenje = document.getElementById('zev-auto-zaduzenje').checked;
-  const danZaduzenja = parseInt(document.getElementById('zev-dan-zaduzenja').value) || 3;
   const editId = document.getElementById('zev-edit-id').value;
 
   if (!naziv) { toast('Unesite naziv ZEV-a.', 'error'); return; }
   if (!adresa) { toast('Unesite adresu.', 'error'); return; }
   if (!ziro) { toast('Unesite žiro račun.', 'error'); return; }
-  if (!akont || akont <= 0) { toast('Unesite ispravan akontacioni bod.', 'error'); return; }
 
   if (editId) {
     const z = DB.zevovi.find(z => z.id === editId);
-    if (z) {
-      Object.assign(z, { naziv, adresa, ziroRacun: ziro, akontacioniBod: akont, brStanova, brGaraza, brPodruma, brPoslovnih, autoZaduzenje, danZaduzenja });
-      toast('ZEV uspješno ažuriran!', 'success');
-    }
+    if (z) Object.assign(z, { naziv, adresa, ziroRacun: ziro, brStanova, brGaraza, brPodruma, brPoslovnih });
+    toast('ZEV uspješno ažuriran!', 'success');
   } else {
     const id = 'zev_' + Date.now();
-    DB.zevovi.push({ id, naziv, adresa, ziroRacun: ziro, akontacioniBod: akont, brStanova, brGaraza, brPodruma, brPoslovnih, autoZaduzenje, danZaduzenja });
-    // Dodaj u ZEVOVI mapu za glasanje/prijave
+    DB.zevovi.push({ id, naziv, adresa, ziroRacun: ziro, brStanova, brGaraza, brPodruma, brPoslovnih });
     ZEVOVI[id] = naziv;
-    // Ažuriraj dropdown selekte
     azurirajZevSelecte(id, naziv);
     toast('ZEV uspješno kreiran!', 'success');
   }
@@ -1369,7 +1468,7 @@ function snimiZev() {
 }
 
 function azurirajZevSelecte(id, naziv) {
-  ['anketa-zev','prijava-zev','izv-zev'].forEach(selId => {
+  ['anketa-zev','izv-zev'].forEach(selId => {
     const sel = document.getElementById(selId);
     if (sel) {
       const opt = document.createElement('option');
@@ -1385,14 +1484,10 @@ function urediZev(id) {
   document.getElementById('zev-naziv').value = z.naziv;
   document.getElementById('zev-adresa').value = z.adresa;
   document.getElementById('zev-ziro').value = z.ziroRacun;
-  document.getElementById('zev-akont').value = z.akontacioniBod;
   document.getElementById('zev-br-stanova').value = z.brStanova;
   document.getElementById('zev-br-garaza').value = z.brGaraza;
   document.getElementById('zev-br-podruma').value = z.brPodruma;
   document.getElementById('zev-br-poslovnih').value = z.brPoslovnih;
-  document.getElementById('zev-auto-zaduzenje').checked = z.autoZaduzenje;
-  document.getElementById('zev-dan-wrap').style.display = z.autoZaduzenje ? 'block' : 'none';
-  document.getElementById('zev-dan-zaduzenja').value = z.danZaduzenja || 3;
   document.getElementById('zev-edit-id').value = id;
   document.getElementById('zev-btn-label').textContent = 'Snimi izmjene';
   openModal('modal-novi-zev');
@@ -1407,7 +1502,7 @@ function obrisiZev(id) {
 }
 
 function ocistiZevFormu() {
-  ['zev-naziv','zev-adresa','zev-ziro','zev-akont','zev-edit-id'].forEach(id => {
+  ['zev-naziv','zev-adresa','zev-ziro','zev-edit-id'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -1415,8 +1510,6 @@ function ocistiZevFormu() {
   document.getElementById('zev-br-garaza').value = 0;
   document.getElementById('zev-br-podruma').value = 0;
   document.getElementById('zev-br-poslovnih').value = 0;
-  document.getElementById('zev-auto-zaduzenje').checked = false;
-  document.getElementById('zev-dan-wrap').style.display = 'none';
   document.getElementById('zev-btn-label').textContent = 'Kreiraj ZEV';
 }
 
@@ -1435,9 +1528,7 @@ function otvoriZev(id) {
   document.getElementById('zev-detalj-info').innerHTML = `
     <div style="display:flex;gap:28px;flex-wrap:wrap">
       <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px">Žiro račun</div><div style="font-family:var(--font-mono);font-size:13px">${z.ziroRacun}</div></div>
-      <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px">Akontacioni bod</div><div style="font-size:15px;font-weight:700;color:var(--accent)">${Number(z.akontacioniBod).toFixed(2)} KM/m²</div></div>
       <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px">Kapacitet</div><div style="font-size:13px">${z.brStanova} st · ${z.brGaraza} gar · ${z.brPodruma} pod · ${z.brPoslovnih} pos</div></div>
-      <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px">Zaduženje</div><div style="font-size:13px;color:${z.autoZaduzenje?'var(--green)':'var(--text2)'}">${z.autoZaduzenje ? '✓ Automatski — '+z.danZaduzenja+'. u mj.' : 'Ručno'}</div></div>
     </div>`;
 
   renderVlasnici();
@@ -1581,10 +1672,17 @@ function snimiVlasnika() {
 
   if (editId) {
     const v = DB.vlasnici.find(v => v.id === editId);
+    const stariKod = v?.kod;
     if (v) Object.assign(v, podaci);
     // Ažuriraj i u KORISNICI
-    const ki = KORISNICI.findIndex(k => k.kod === v?.kod);
-    if (ki >= 0) { KORISNICI[ki].kod = kod; KORISNICI[ki].password = lozinka; KORISNICI[ki].ime = imeVlasnika+' '+prezimeVlasnika; KORISNICI[ki].zev = zevId; }
+    const ki = KORISNICI.findIndex(k => k.kod === stariKod);
+    if (ki >= 0) { KORISNICI[ki].kod = kod; KORISNICI[ki].password = lozinka; KORISNICI[ki].ime = imeVlasnika+' '+prezimeVlasnika; }
+    // Ako se kod promijenio, ažuriraj i POVEZANI_NALOZI grupu
+    if (stariKod && stariKod !== kod && POVEZANI_NALOZI[stariKod]) {
+      const grupa = POVEZANI_NALOZI[stariKod].map(k => k === stariKod ? kod : k);
+      delete POVEZANI_NALOZI[stariKod];
+      grupa.forEach(kk => POVEZANI_NALOZI[kk] = grupa);
+    }
     toast('Vlasnik ažuriran!', 'success');
     closeModal('modal-novi-vlasnik');
     renderVlasnici();
@@ -1592,7 +1690,7 @@ function snimiVlasnika() {
     const noviId = 'v_' + Date.now();
     DB.vlasnici.push({ id: noviId, ...podaci });
     // Dodaj u KORISNICI listu za login
-    KORISNICI.push({ kod, password: lozinka, ime: imeVlasnika+' '+prezimeVlasnika, zev: zevId });
+    KORISNICI.push({ kod, password: lozinka, ime: imeVlasnika+' '+prezimeVlasnika });
     closeModal('modal-novi-vlasnik');
     // Prikaži pristupne podatke
     document.getElementById('pp-ime').textContent = imeVlasnika+' '+prezimeVlasnika;
@@ -1667,6 +1765,106 @@ function ocistiVlasnikFormu() {
 
 let currentUser = null;
 
+// ═══════════════════════════════════════════════════════
+// POVEZIVANJE NEPOKRETNOSTI (multi-property nalog)
+// ═══════════════════════════════════════════════════════
+
+function otvoriPoveciNalog() {
+  document.getElementById('poveci-kod').value = '';
+  document.getElementById('poveci-lozinka').value = '';
+  document.getElementById('poveci-greska').style.display = 'none';
+  renderPoveciLista();
+  openModal('modal-poveci-nalog');
+}
+
+function renderPoveciLista() {
+  const kodovi = getPovezaniKodovi(currentUser.kod);
+  const cont = document.getElementById('poveci-lista');
+  const stavke = DB.vlasnici.filter(v => kodovi.includes(v.kod));
+
+  cont.innerHTML = stavke.map(v => {
+    const z = DB.zevovi.find(z => z.id === v.zevId);
+    const jeOvaj = v.kod === currentUser.kod;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg3);border-radius:var(--radius);margin-bottom:8px">
+      <div>
+        <div style="font-size:13px;font-weight:500">${v.oznaka} <span style="color:var(--text3);font-family:var(--font-mono);font-size:11px">(${v.sifra})</span></div>
+        <div style="font-size:11px;color:var(--text3)">${z?.naziv || '—'}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="badge ${jeOvaj ? 'badge-blue' : 'badge-gray'}" style="font-family:var(--font-mono)">${v.kod}</span>
+        ${jeOvaj ? '<span class="badge badge-green">Aktivan login</span>' : `<button class="btn btn-sm btn-danger" onclick="ukloniPovezanost('${v.kod}')" title="Ukloni povezanost"><i class="ti ti-unlink"></i></button>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function poveziNepokretnost() {
+  const kod = document.getElementById('poveci-kod').value.trim();
+  const pass = document.getElementById('poveci-lozinka').value;
+  const greska = document.getElementById('poveci-greska');
+  greska.style.display = 'none';
+
+  if (!kod || !pass) { greska.textContent = 'Unesite korisnički kod i lozinku.'; greska.style.display = 'block'; return; }
+  if (kod === currentUser.kod) { greska.textContent = 'Ne možete povezati nalog sa samim sobom.'; greska.style.display = 'block'; return; }
+
+  const k = KORISNICI.find(k => k.kod === kod && k.password === pass);
+  if (!k) { greska.textContent = 'Pogrešan korisnički kod ili lozinka.'; greska.style.display = 'block'; return; }
+
+  const vecPovezano = getPovezaniKodovi(currentUser.kod);
+  if (vecPovezano.includes(kod)) { greska.textContent = 'Ova nepokretnost je već povezana.'; greska.style.display = 'block'; return; }
+
+  // Spoji grupe (union) — currentUser grupa + kod grupa
+  const grupaA = getPovezaniKodovi(currentUser.kod);
+  const grupaB = getPovezaniKodovi(kod);
+  const spojeno = [...new Set([...grupaA, ...grupaB])];
+  spojeno.forEach(kk => POVEZANI_NALOZI[kk] = spojeno);
+
+  // Ažuriraj listu ZEV-ova za trenutnog korisnika
+  currentUser.zevovi = getZevoviZaKorisnika(currentUser.kod);
+  if (!currentUser.zevovi.find(z => z.id === currentUser.aktivniZev)) {
+    currentUser.aktivniZev = currentUser.zevovi[0]?.id || null;
+  }
+  const sel = document.getElementById('aktivni-zev-select');
+  sel.innerHTML = currentUser.zevovi.map(z => `<option value="${z.id}">${z.naziv}</option>`).join('');
+  sel.value = currentUser.aktivniZev;
+  document.getElementById('zev-selector-wrap').style.display = currentUser.zevovi.length > 1 ? 'block' : 'none';
+
+  document.getElementById('poveci-kod').value = '';
+  document.getElementById('poveci-lozinka').value = '';
+  renderPoveciLista();
+  toast('Nepokretnost uspješno povezana!', 'success');
+
+  const aktivnaStranica = document.querySelector('.page.active')?.id?.replace('page-','');
+  if (aktivnaStranica) renderPage(aktivnaStranica);
+}
+
+function ukloniPovezanost(kod) {
+  if (!confirm('Ukloniti ovu nepokretnost sa naloga?')) return;
+
+  // Izdvoji kod iz grupe currentUser-a
+  const grupa = getPovezaniKodovi(currentUser.kod).filter(k => k !== kod);
+  grupa.forEach(kk => POVEZANI_NALOZI[kk] = grupa.length > 1 ? grupa : undefined);
+  if (grupa.length <= 1) grupa.forEach(kk => delete POVEZANI_NALOZI[kk]);
+
+  // Odvojeni kod postaje svoja sopstvena grupa
+  delete POVEZANI_NALOZI[kod];
+
+  currentUser.zevovi = getZevoviZaKorisnika(currentUser.kod);
+  if (!currentUser.zevovi.find(z => z.id === currentUser.aktivniZev)) {
+    currentUser.aktivniZev = currentUser.zevovi[0]?.id || null;
+  }
+  const sel = document.getElementById('aktivni-zev-select');
+  sel.innerHTML = currentUser.zevovi.map(z => `<option value="${z.id}">${z.naziv}</option>`).join('');
+  sel.value = currentUser.aktivniZev;
+  document.getElementById('zev-selector-wrap').style.display = currentUser.zevovi.length > 1 ? 'block' : 'none';
+
+  renderPoveciLista();
+  toast('Povezanost uklonjena.', 'success');
+
+  const aktivnaStranica = document.querySelector('.page.active')?.id?.replace('page-','');
+  if (aktivnaStranica) renderPage(aktivnaStranica);
+}
+
 function setLoginTab(tab) {
   document.querySelectorAll('.login-tab').forEach((t,i) => t.classList.toggle('active', (i===0 && tab==='admin') || (i===1 && tab==='vlasnik')));
   document.getElementById('tab-admin').style.display = tab === 'admin' ? 'block' : 'none';
@@ -1695,10 +1893,22 @@ function loginVlasnik() {
   const pass = document.getElementById('vlasnik-pass').value;
   const k = KORISNICI.find(k => k.kod === kod && k.password === pass);
   if (k) {
-    doLogin({ tip: 'vlasnik', ime: k.ime, kod: k.kod, zev: k.zev });
+    doLogin({ tip: 'vlasnik', ime: k.ime, kod: k.kod });
   } else {
     showError('Pogrešan korisnički kod ili lozinka.');
   }
+}
+
+// Vrati listu svih kodova povezanih sa datim kodom (uklj. sebe)
+function getPovezaniKodovi(kod) {
+  return POVEZANI_NALOZI[kod] || [kod];
+}
+
+// Vrati listu ZEV-ova (jedinstveno) za dati kod uzimajući u obzir povezane nepokretnosti
+function getZevoviZaKorisnika(kod) {
+  const kodovi = getPovezaniKodovi(kod);
+  const zevIds = [...new Set(DB.vlasnici.filter(v => kodovi.includes(v.kod)).map(v => v.zevId))];
+  return zevIds.map(id => DB.zevovi.find(z => z.id === id)).filter(Boolean);
 }
 
 function doLogin(user) {
@@ -1717,16 +1927,35 @@ function doLogin(user) {
     rb.textContent = 'Admin';
     rb.className = 'role-badge role-admin';
     document.body.classList.add('admin');
-    // Prikaži admin navigaciju
     document.getElementById('nav-admin-zevovi').style.display = 'inline-flex';
     document.getElementById('nav-admin-glasanje').style.display = 'inline-flex';
     document.getElementById('nav-admin-prijave').style.display = 'inline-flex';
+    document.querySelectorAll('.vlasnik-only').forEach(el => el.style.display = 'none');
   } else {
     rb.textContent = 'Etažni vlasnik';
     rb.className = 'role-badge role-vlasnik';
+
+    // Učitaj ZEV-ove ovog korisnika (uklj. povezane nepokretnosti)
+    const zevovi = getZevoviZaKorisnika(user.kod);
+    currentUser.zevovi = zevovi;
+    currentUser.aktivniZev = zevovi[0]?.id || null;
+
+    // Popuni ZEV selector u topbaru
+    const sel = document.getElementById('aktivni-zev-select');
+    sel.innerHTML = zevovi.map(z => `<option value="${z.id}">${z.naziv}</option>`).join('');
+    document.getElementById('zev-selector-wrap').style.display = zevovi.length > 1 ? 'block' : 'none';
+    document.getElementById('btn-poveci-nalog').style.display = 'inline-flex';
   }
 
   showPage('glasanje');
+}
+
+// Promjena aktivnog ZEV-a za vlasnika (kad ima više nepokretnosti)
+function promijeniAktivniZev(zevId) {
+  currentUser.aktivniZev = zevId;
+  const aktivnaStranica = document.querySelector('.page.active')?.id?.replace('page-','');
+  if (aktivnaStranica) renderPage(aktivnaStranica);
+  toast('Prikazujete podatke za: ' + (ZEVOVI[zevId] || zevId), 'success');
 }
 
 function odjava() {
@@ -1737,6 +1966,7 @@ function odjava() {
   document.getElementById('nav-admin-zevovi').style.display = 'none';
   document.getElementById('nav-admin-glasanje').style.display = 'none';
   document.getElementById('nav-admin-prijave').style.display = 'none';
+  document.querySelectorAll('.vlasnik-only').forEach(el => el.style.display = 'none');
   document.getElementById('admin-user').value = '';
   document.getElementById('admin-pass').value = '';
   document.getElementById('vlasnik-kod').value = '';
@@ -1773,7 +2003,7 @@ function renderPage(id) {
   if (id === 'admin-glasanje') renderAdminGlasanje();
   if (id === 'prijave') renderPrijaveVlasnik();
   if (id === 'admin-prijave') renderAdminPrijave();
-  if (id === 'izvjestaji') { /* filter ručno */ }
+  if (id === 'izvjestaji') initIzvjestaji();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1782,10 +2012,13 @@ function renderPage(id) {
 
 function renderGlasanjeVlasnik() {
   const cont = document.getElementById('glasanje-lista');
-  const userZev = currentUser?.zev;
-  const ankete = currentUser?.tip === 'admin'
-    ? DB.ankete
-    : DB.ankete.filter(a => a.zev === userZev);
+  const userZev = currentUser?.aktivniZev;
+  // Admin ne vidi glasanje ovdje - preusmjeri na admin upravljanje
+  if (currentUser?.tip === 'admin') {
+    cont.innerHTML = `<div class="empty"><i class="ti ti-checkup-list"></i><p>Kao admin, upravljate glasanjima putem sekcije <strong>Glasanje</strong> u navigaciji.</p></div>`;
+    return;
+  }
+  const ankete = DB.ankete.filter(a => a.zev === userZev);
 
   if (ankete.length === 0) {
     cont.innerHTML = '<div class="empty"><i class="ti ti-checkup-list"></i><p>Nema aktivnih glasanja za vašu zajednicu.</p></div>';
@@ -1794,7 +2027,7 @@ function renderGlasanjeVlasnik() {
 
   cont.innerHTML = ankete.map(a => {
     const ukupno = Object.values(a.glasovi).reduce((s,v) => s + v, 0);
-    const vecGlasao = a.glasali?.includes(currentUser?.kod || 'admin');
+    const vecGlasao = a.glasali?.includes(currentUser?.kod);
     const istekao = new Date(a.krajDatum) < new Date();
     const zatvorena = a.zatvorena || istekao;
 
@@ -2003,9 +2236,13 @@ function statusChip(s) {
 
 function renderPrijaveVlasnik() {
   const cont = document.getElementById('prijave-lista');
-  const prijave = currentUser?.tip === 'admin'
-    ? DB.prijave
-    : DB.prijave.filter(p => p.korisnikKod === currentUser?.kod);
+  let prijave;
+  if (currentUser?.tip === 'admin') {
+    prijave = DB.prijave;
+  } else {
+    const kodovi = getPovezaniKodovi(currentUser?.kod);
+    prijave = DB.prijave.filter(p => p.zev === currentUser?.aktivniZev && kodovi.includes(p.korisnikKod));
+  }
 
   if (prijave.length === 0) {
     cont.innerHTML = '<div class="empty"><i class="ti ti-tool"></i><p>Nema prijava. Kliknite "Nova prijava" da prijavite problem.</p></div>';
@@ -2059,7 +2296,7 @@ function renderAdminPrijave() {
 }
 
 function kreirajPrijavu() {
-  const zev = document.getElementById('prijava-zev').value;
+  const zev = currentUser?.aktivniZev;
   const naslov = document.getElementById('prijava-naslov').value.trim();
   const opis = document.getElementById('prijava-opis').value.trim();
 
@@ -2113,89 +2350,231 @@ function posaljiOdgovor() {
 // IZVJEŠTAJI
 // ═══════════════════════════════════════════════════════
 
+function initIzvjestaji() {
+  popuniZevSelecte();
+  if (currentUser?.tip === 'admin') {
+    document.getElementById('izv-admin-panel').style.display = 'block';
+    document.getElementById('izv-page-sub').textContent = 'Unos finansijskih podataka i pregled izvještaja';
+    renderAdminIzvLista();
+  } else {
+    document.getElementById('izv-admin-panel').style.display = 'none';
+    document.getElementById('izv-page-sub').textContent = 'Finansijski pregled vaše zajednice';
+  }
+}
+
+function azurirajAdminIzvZev() { renderAdminIzvLista(); }
+
+function renderAdminIzvLista() {
+  const zevId = document.getElementById('admin-izv-zev')?.value;
+  if (!zevId) return;
+  const podaci = DB.finansijskiPodaci.filter(f => f.zevId === zevId)
+    .sort((a,b) => b.period.localeCompare(a.period));
+
+  const cont = document.getElementById('admin-izv-lista');
+  if (!cont) return;
+
+  if (podaci.length === 0) {
+    cont.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text3);font-size:13px"><i class="ti ti-info-circle"></i> Nema unesenih podataka za ovaj ZEV.</div>`;
+    return;
+  }
+
+  cont.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>Period</th><th>Uplate</th><th>Isplate</th><th>Stanje žiro</th><th>Dugovanja</th><th>Napomena</th><th></th></tr></thead>
+    <tbody>${podaci.map(f => `<tr>
+      <td style="font-weight:600;font-family:var(--font-mono)">${f.period}</td>
+      <td style="color:var(--green)">${Number(f.uplate).toFixed(2)} KM</td>
+      <td style="color:var(--red)">${Number(f.isplate).toFixed(2)} KM</td>
+      <td style="font-weight:500">${Number(f.stanje).toFixed(2)} KM</td>
+      <td style="color:var(--red)">${Number(f.dugovanja).toFixed(2)} KM</td>
+      <td style="color:var(--text2);font-size:12px">${f.napomena || '—'}</td>
+      <td>
+        <div style="display:flex;gap:5px">
+          <button class="btn btn-sm" onclick="urediUnosIzvjestaja('${f.id}')"><i class="ti ti-edit"></i></button>
+          <button class="btn btn-sm btn-danger" onclick="obrisiUnosIzvjestaja('${f.id}')"><i class="ti ti-trash"></i></button>
+        </div>
+      </td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+function otvoriUnosIzvjestaja() {
+  const zevId = document.getElementById('admin-izv-zev').value;
+  const period = document.getElementById('admin-izv-period').value.trim();
+  if (!period) { toast('Unesite period.', 'error'); return; }
+
+  const z = DB.zevovi.find(z => z.id === zevId);
+  document.getElementById('modal-izv-zev-naziv').textContent = z?.naziv || '—';
+  document.getElementById('modal-izv-period-prikaz').textContent = period;
+  document.getElementById('unos-zev-id').value = zevId;
+  document.getElementById('unos-period').value = period;
+  document.getElementById('unos-edit-id').value = '';
+
+  // Provjeri postoji li već unos
+  const postoji = DB.finansijskiPodaci.find(f => f.zevId === zevId && f.period === period);
+  if (postoji) {
+    document.getElementById('unos-uplate').value = postoji.uplate;
+    document.getElementById('unos-isplate').value = postoji.isplate;
+    document.getElementById('unos-stanje').value = postoji.stanje;
+    document.getElementById('unos-dugovanja').value = postoji.dugovanja;
+    document.getElementById('unos-napomena').value = postoji.napomena || '';
+    document.getElementById('unos-edit-id').value = postoji.id;
+  } else {
+    ['unos-uplate','unos-isplate','unos-stanje','unos-dugovanja','unos-napomena'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+  }
+  openModal('modal-unos-izvjestaja');
+}
+
+function urediUnosIzvjestaja(id) {
+  const f = DB.finansijskiPodaci.find(f => f.id === id);
+  if (!f) return;
+  const z = DB.zevovi.find(z => z.id === f.zevId);
+  document.getElementById('modal-izv-zev-naziv').textContent = z?.naziv || '—';
+  document.getElementById('modal-izv-period-prikaz').textContent = f.period;
+  document.getElementById('unos-zev-id').value = f.zevId;
+  document.getElementById('unos-period').value = f.period;
+  document.getElementById('unos-edit-id').value = id;
+  document.getElementById('unos-uplate').value = f.uplate;
+  document.getElementById('unos-isplate').value = f.isplate;
+  document.getElementById('unos-stanje').value = f.stanje;
+  document.getElementById('unos-dugovanja').value = f.dugovanja;
+  document.getElementById('unos-napomena').value = f.napomena || '';
+  openModal('modal-unos-izvjestaja');
+}
+
+function snimiUnosIzvjestaja() {
+  const zevId = document.getElementById('unos-zev-id').value;
+  const period = document.getElementById('unos-period').value;
+  const uplate = parseFloat(document.getElementById('unos-uplate').value);
+  const isplate = parseFloat(document.getElementById('unos-isplate').value);
+  const stanje = parseFloat(document.getElementById('unos-stanje').value);
+  const dugovanja = parseFloat(document.getElementById('unos-dugovanja').value) || 0;
+  const napomena = document.getElementById('unos-napomena').value.trim();
+  const editId = document.getElementById('unos-edit-id').value;
+
+  if (isNaN(uplate)) { toast('Unesite iznos uplata.', 'error'); return; }
+  if (isNaN(isplate)) { toast('Unesite iznos isplata.', 'error'); return; }
+  if (isNaN(stanje)) { toast('Unesite stanje žiro računa.', 'error'); return; }
+
+  if (editId) {
+    const f = DB.finansijskiPodaci.find(f => f.id === editId);
+    if (f) Object.assign(f, { uplate, isplate, stanje, dugovanja, napomena });
+    toast('Podaci ažurirani!', 'success');
+  } else {
+    DB.finansijskiPodaci.push({ id: 'f'+Date.now(), zevId, period, uplate, isplate, stanje, dugovanja, napomena });
+    toast('Podaci uspješno uneseni!', 'success');
+  }
+
+  closeModal('modal-unos-izvjestaja');
+  renderAdminIzvLista();
+}
+
+function obrisiUnosIzvjestaja(id) {
+  if (!confirm('Obrisati unos?')) return;
+  DB.finansijskiPodaci = DB.finansijskiPodaci.filter(f => f.id !== id);
+  toast('Unos obrisan.', 'success');
+  renderAdminIzvLista();
+}
+
 function updatePeriodField() {
   const tip = document.getElementById('izv-tip').value;
   document.getElementById('period-label').textContent = tip === 'mjesecni' ? 'Period (MM/GGGG)' : 'Godina';
   document.getElementById('izv-period').placeholder = tip === 'mjesecni' ? '05/2026' : '2026';
   document.getElementById('izv-period').value = tip === 'mjesecni' ? '05/2026' : '2026';
+  document.getElementById('izvjestaj-content').style.display = 'none';
 }
 
 function ucitajIzvjestaj() {
-  const zev = document.getElementById('izv-zev').value;
+  const zevId = document.getElementById('izv-zev').value;
   const tip = document.getElementById('izv-tip').value;
   const period = document.getElementById('izv-period').value.trim();
-
-  let transakcije = DB.transakcije.filter(t => t.zev === zev);
+  const z = DB.zevovi.find(z => z.id === zevId);
+  if (!z) return;
 
   if (tip === 'mjesecni') {
-    const [mm, yyyy] = period.split('/');
-    transakcije = transakcije.filter(t => {
-      const d = new Date(t.datum);
-      return d.getMonth() + 1 === parseInt(mm) && d.getFullYear() === parseInt(yyyy);
-    });
-  } else {
-    transakcije = transakcije.filter(t => new Date(t.datum).getFullYear() === parseInt(period));
-  }
-
-  const uplate = transakcije.filter(t => t.tip === 'UPLATA');
-  const isplate = transakcije.filter(t => t.tip === 'ISPLATA');
-  const ukupnoU = uplate.reduce((s,t) => s + t.iznos, 0);
-  const ukupnoI = isplate.reduce((s,t) => s + t.iznos, 0);
-  const razlika = ukupnoU - ukupnoI;
-
-  // Stats
-  document.getElementById('izv-stats').innerHTML = `
-    <div class="stat"><div class="stat-label">Ukupno uplate</div><div class="stat-val" style="color:var(--green)">${ukupnoU.toFixed(2)} KM</div></div>
-    <div class="stat"><div class="stat-label">Ukupno isplate</div><div class="stat-val" style="color:var(--red)">${ukupnoI.toFixed(2)} KM</div></div>
-    <div class="stat"><div class="stat-label">Razlika</div><div class="stat-val" style="color:${razlika>=0?'var(--green)':'var(--red)'}">${razlika.toFixed(2)} KM</div></div>
-    <div class="stat"><div class="stat-label">Transakcija</div><div class="stat-val">${transakcije.length}</div></div>`;
-
-  // Godišnji — po mjesecima
-  const godisnjiTabela = document.getElementById('izv-tabela-godisnji');
-  if (tip === 'godisnji') {
-    godisnjiTabela.style.display = 'block';
-    const poMjesecima = {};
-    for (let m = 1; m <= 12; m++) {
-      const key = String(m).padStart(2,'0') + '/' + period;
-      const mT = transakcije.filter(t => new Date(t.datum).getMonth() + 1 === m);
-      const u = mT.filter(t => t.tip === 'UPLATA').reduce((s,t) => s+t.iznos, 0);
-      const i = mT.filter(t => t.tip === 'ISPLATA').reduce((s,t) => s+t.iznos, 0);
-      poMjesecima[key] = { u, i };
+    const f = DB.finansijskiPodaci.find(f => f.zevId === zevId && f.period === period);
+    if (!f) {
+      toast('Nema unesenih podataka za ovaj period.', 'error');
+      document.getElementById('izvjestaj-content').style.display = 'none';
+      return;
     }
-    document.getElementById('izv-mjeseci-body').innerHTML = Object.entries(poMjesecima).map(([mj, v]) => {
-      const raz = v.u - v.i;
-      return `<tr>
-        <td style="font-weight:500">${mj}</td>
-        <td style="color:var(--green)">${v.u.toFixed(2)} KM</td>
-        <td style="color:var(--red)">${v.i.toFixed(2)} KM</td>
-        <td style="color:${raz>=0?'var(--green)':'var(--red)'}; font-weight:500">${raz.toFixed(2)} KM</td>
-      </tr>`;
-    }).join('');
-  } else {
-    godisnjiTabela.style.display = 'none';
-  }
 
-  // Transakcije detalji
-  if (transakcije.length === 0) {
-    document.getElementById('izv-transakcije-body').innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">Nema transakcija za odabrani period</td></tr>';
+    const razlika = f.uplate - f.isplate;
+    document.getElementById('izv-stats').innerHTML = `
+      <div class="stat"><div class="stat-label">Ukupno uplate</div><div class="stat-val" style="color:var(--green)">${Number(f.uplate).toFixed(2)} KM</div></div>
+      <div class="stat"><div class="stat-label">Ukupno isplate</div><div class="stat-val" style="color:var(--red)">${Number(f.isplate).toFixed(2)} KM</div></div>
+      <div class="stat"><div class="stat-label">Stanje žiro računa</div><div class="stat-val">${Number(f.stanje).toFixed(2)} KM</div></div>
+      <div class="stat"><div class="stat-label">Dugovanja</div><div class="stat-val" style="color:var(--red)">${Number(f.dugovanja).toFixed(2)} KM</div></div>`;
+
+    document.getElementById('izv-tabela-godisnji').style.display = 'none';
+    const detalj = document.getElementById('izv-miesecni-detalj');
+    detalj.style.display = 'block';
+    detalj.querySelector('#izv-detalj-content').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">ZEV</div>
+          <div style="font-weight:500">${z.naziv}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Period</div>
+          <div style="font-weight:500;font-family:var(--font-mono)">${f.period}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Žiro račun</div>
+          <div style="font-family:var(--font-mono);font-size:12px">${z.ziroRacun}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Razlika (uplate − isplate)</div>
+          <div style="font-weight:600;color:${razlika>=0?'var(--green)':'var(--red)'}">${razlika>=0?'+':''}${razlika.toFixed(2)} KM</div>
+        </div>
+        ${f.napomena ? `<div style="grid-column:1/-1"><div style="font-size:11px;color:var(--text3);margin-bottom:4px">Napomena</div><div style="color:var(--text2)">${f.napomena}</div></div>` : ''}
+      </div>`;
+
   } else {
-    document.getElementById('izv-transakcije-body').innerHTML = transakcije.map(t => `
-      <tr>
-        <td style="color:var(--text2)">${new Date(t.datum).toLocaleDateString('bs-BA')}</td>
-        <td>${t.opis}</td>
-        <td style="color:var(--text2)">${t.prostor}</td>
-        <td><span class="badge ${t.tip==='UPLATA'?'badge-green':'badge-red'}">${t.tip}</span></td>
-        <td style="text-align:right;font-weight:500;color:${t.tip==='UPLATA'?'var(--green)':'var(--red)'}">
-          ${t.tip==='UPLATA'?'+':'-'}${t.iznos.toFixed(2)} KM
-        </td>
-      </tr>`).join('');
+    // Godišnji
+    const godina = parseInt(period);
+    const godisnjiPodaci = DB.finansijskiPodaci.filter(f =>
+      f.zevId === zevId && f.period.endsWith('/'+godina)
+    ).sort((a,b) => a.period.localeCompare(b.period));
+
+    const ukUpl = godisnjiPodaci.reduce((s,f) => s+f.uplate, 0);
+    const ukIsp = godisnjiPodaci.reduce((s,f) => s+f.isplate, 0);
+    const zadnjeStanje = godisnjiPodaci.length > 0 ? godisnjiPodaci[godisnjiPodaci.length-1].stanje : 0;
+    const zadnjeDug = godisnjiPodaci.length > 0 ? godisnjiPodaci[godisnjiPodaci.length-1].dugovanja : 0;
+
+    document.getElementById('izv-stats').innerHTML = `
+      <div class="stat"><div class="stat-label">Ukupno uplate</div><div class="stat-val" style="color:var(--green)">${ukUpl.toFixed(2)} KM</div></div>
+      <div class="stat"><div class="stat-label">Ukupno isplate</div><div class="stat-val" style="color:var(--red)">${ukIsp.toFixed(2)} KM</div></div>
+      <div class="stat"><div class="stat-label">Stanje (kraj god.)</div><div class="stat-val">${zadnjeStanje.toFixed(2)} KM</div></div>
+      <div class="stat"><div class="stat-label">Dugovanja (kraj god.)</div><div class="stat-val" style="color:var(--red)">${zadnjeDug.toFixed(2)} KM</div></div>`;
+
+    document.getElementById('izv-miesecni-detalj').style.display = 'none';
+    const tabela = document.getElementById('izv-tabela-godisnji');
+    tabela.style.display = 'block';
+
+    if (godisnjiPodaci.length === 0) {
+      document.getElementById('izv-mjeseci-body').innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Nema unesenih podataka za odabranu godinu.</td></tr>';
+    } else {
+      document.getElementById('izv-mjeseci-body').innerHTML = godisnjiPodaci.map(f => {
+        const raz = f.uplate - f.isplate;
+        return `<tr>
+          <td style="font-weight:600;font-family:var(--font-mono)">${f.period}</td>
+          <td style="color:var(--green)">${Number(f.uplate).toFixed(2)} KM</td>
+          <td style="color:var(--red)">${Number(f.isplate).toFixed(2)} KM</td>
+          <td>${Number(f.stanje).toFixed(2)} KM</td>
+          <td style="color:var(--red)">${Number(f.dugovanja).toFixed(2)} KM</td>
+          <td style="color:${raz>=0?'var(--green)':'var(--red)'};font-weight:500">${raz>=0?'+':''}${raz.toFixed(2)} KM</td>
+        </tr>`;
+      }).join('');
+    }
   }
 
   document.getElementById('izvjestaj-content').style.display = 'block';
 }
 
 function exportPdf() {
-  toast('PDF izvještaj se generiše... (U pravoj aplikaciji se preuzima PDF)', 'success');
+  toast('PDF izvještaj se generiše... (U pravoj aplikaciji preuzima se PDF dokument)', 'success');
 }
 
 // ═══════════════════════════════════════════════════════

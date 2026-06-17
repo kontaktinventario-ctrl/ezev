@@ -577,6 +577,12 @@ body.admin .admin-only-block { display: block; }
       <button class="nav-btn" onclick="showPage('izvjestaji')" id="nav-izvjestaji">
         <i class="ti ti-chart-bar"></i> Izvještaji
       </button>
+      <button class="nav-btn vlasnik-only" onclick="showPage('savjetnik')" id="nav-savjetnik" style="display:none">
+        <i class="ti ti-message-chatbot"></i> Virtuelni savjetnik
+      </button>
+      <button class="nav-btn" onclick="showPage('komsija')" id="nav-komsija">
+        <i class="ti ti-discount-2"></i> Komšija+
+      </button>
       <!-- Admin only -->
       <button class="nav-btn admin-only" onclick="showPage('admin-zevovi')" id="nav-admin-zevovi" style="display:none">
         <i class="ti ti-building-community"></i> ZEV-ovi
@@ -586,6 +592,12 @@ body.admin .admin-only-block { display: block; }
       </button>
       <button class="nav-btn admin-only" onclick="showPage('admin-prijave')" id="nav-admin-prijave" style="display:none">
         <i class="ti ti-inbox"></i> Prijave
+      </button>
+      <button class="nav-btn admin-only" onclick="showPage('admin-savjetnik')" id="nav-admin-savjetnik" style="display:none">
+        <i class="ti ti-message-chatbot"></i> Savjetnik
+      </button>
+      <button class="nav-btn admin-only" onclick="showPage('admin-komsija')" id="nav-admin-komsija" style="display:none">
+        <i class="ti ti-discount-2"></i> Komšija+
       </button>
     </nav>
 
@@ -818,6 +830,67 @@ body.admin .admin-only-block { display: block; }
       </div>
     </div>
 
+    <!-- ══ VIRTUELNI SAVJETNIK — VLASNIK ══ -->
+    <div class="page" id="page-savjetnik">
+      <div class="page-header">
+        <div class="page-title">Virtuelni savjetnik</div>
+        <div class="page-sub">Postavite pitanje o vašoj zajednici — odgovor se zasniva na podacima koje je unio administrator</div>
+      </div>
+
+      <div class="card" style="padding:0;display:flex;flex-direction:column;height:520px">
+        <div id="savjetnik-poruke" style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px"></div>
+        <div style="border-top:1px solid var(--border);padding:14px 16px;display:flex;gap:10px">
+          <input type="text" id="savjetnik-input" placeholder="Postavite pitanje, npr. 'Ko je predsjednik skupštine?'" style="flex:1;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--font);font-size:13px;outline:none">
+          <button class="btn btn-primary" onclick="postaviPitanjeSavjetniku()"><i class="ti ti-send"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ VIRTUELNI SAVJETNIK — ADMIN UPRAVLJANJE ══ -->
+    <div class="page" id="page-admin-savjetnik">
+      <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div class="page-title">Virtuelni savjetnik — baza znanja</div>
+          <div class="page-sub">Unesite informacije i odgovore na pitanja koje će savjetnik koristiti, posebno za svaki ZEV</div>
+        </div>
+        <button class="btn btn-primary" onclick="openNoviUnosSavjetnik()">
+          <i class="ti ti-plus"></i> Novi unos
+        </button>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="field" style="margin:0">
+          <label>Prikaz za ZEV</label>
+          <select id="admin-savj-zev" onchange="renderAdminSavjetnikLista()"></select>
+        </div>
+      </div>
+
+      <div id="admin-savjetnik-lista"></div>
+    </div>
+
+    <!-- ══ KOMŠIJA+ — VLASNIK ══ -->
+    <div class="page" id="page-komsija">
+      <div class="page-header">
+        <div class="page-title">Komšija+</div>
+        <div class="page-sub">Popusti i pogodnosti kod partnera za etažne vlasnike</div>
+      </div>
+      <div id="komsija-lista" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px"></div>
+    </div>
+
+    <!-- ══ KOMŠIJA+ — ADMIN UPRAVLJANJE ══ -->
+    <div class="page" id="page-admin-komsija">
+      <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div class="page-title">Komšija+ — partneri</div>
+          <div class="page-sub">Upravljanje poslovnim partnerima i popustima</div>
+        </div>
+        <button class="btn btn-primary" onclick="openNoviPartner()">
+          <i class="ti ti-plus"></i> Novi partner
+        </button>
+      </div>
+      <div id="admin-komsija-lista" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px"></div>
+    </div>
+
   </div><!-- /content -->
 </div><!-- /app-screen -->
 
@@ -869,8 +942,11 @@ body.admin .admin-only-block { display: block; }
 
 <!-- Rezultati glasanja -->
 <div class="modal-overlay" id="modal-rezultati">
-  <div class="modal" style="max-width:480px">
-    <div class="modal-title">Rezultati glasanja</div>
+  <div class="modal" style="max-width:560px;max-height:85vh;overflow-y:auto">
+    <div class="modal-title" style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <span>Rezultati glasanja</span>
+      <button class="btn btn-sm" onclick="exportRezultateGlasanja()"><i class="ti ti-file-type-pdf"></i> Export</button>
+    </div>
     <div id="rezultati-content"></div>
     <div class="modal-footer">
       <button class="btn btn-primary" onclick="closeModal('modal-rezultati')">Zatvori</button>
@@ -1189,8 +1265,75 @@ body.admin .admin-only-block { display: block; }
   </div>
 </div>
 
+<!-- Modal: Novi unos za virtuelnog savjetnika -->
+<div class="modal-overlay" id="modal-novi-unos-savjetnik">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title"><i class="ti ti-message-chatbot" style="color:var(--accent)"></i> <span id="savj-modal-naslov">Novi unos u bazu znanja</span></div>
+    <div class="field">
+      <label>ZEV</label>
+      <select id="savj-zev"></select>
+    </div>
+    <div class="field">
+      <label>Pitanje / Tema</label>
+      <input type="text" id="savj-pitanje" placeholder="npr. Ko je predsjednik skupštine?">
+    </div>
+    <div class="field">
+      <label>Odgovor</label>
+      <textarea id="savj-odgovor" placeholder="Unesite odgovor koji će savjetnik davati etažnim vlasnicima..." rows="4"></textarea>
+    </div>
+    <input type="hidden" id="savj-edit-id">
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-novi-unos-savjetnik')">Odustani</button>
+      <button class="btn btn-primary" onclick="snimiUnosSavjetnik()"><i class="ti ti-check"></i> Snimi</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Novi partner Komšija+ -->
+<div class="modal-overlay" id="modal-novi-partner">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title"><i class="ti ti-discount-2" style="color:var(--accent)"></i> <span id="partner-modal-naslov">Novi partner</span></div>
+    <div class="field">
+      <label>Naziv partnera</label>
+      <input type="text" id="partner-naziv" placeholder="npr. Majstor na sat">
+    </div>
+    <div class="field">
+      <label>Opis usluge / popusta</label>
+      <textarea id="partner-opis" placeholder="npr. 10% popusta za sve etažne vlasnike na popravke u domaćinstvu" rows="3"></textarea>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Kontakt telefon</label>
+        <input type="text" id="partner-telefon" placeholder="+387 65 123 456">
+      </div>
+      <div class="field">
+        <label>Email / Web <span style="opacity:0.5">(opciono)</span></label>
+        <input type="text" id="partner-email" placeholder="info@partner.com">
+      </div>
+    </div>
+    <div class="field">
+      <label>Kategorija</label>
+      <select id="partner-kategorija">
+        <option value="ti-tool">Majstor / Popravke</option>
+        <option value="ti-leaf">Čišćenje / Eko usluge</option>
+        <option value="ti-bulb">Elektro usluge</option>
+        <option value="ti-droplet">Vodoinstalacije</option>
+        <option value="ti-shopping-cart">Trgovina</option>
+        <option value="ti-heart">Zdravstvo</option>
+        <option value="ti-building-store">Ostalo</option>
+      </select>
+    </div>
+    <input type="hidden" id="partner-edit-id">
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-novi-partner')">Odustani</button>
+      <button class="btn btn-primary" onclick="snimiPartnera()"><i class="ti ti-check"></i> Snimi</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast kontejner -->
 <div class="toast-container" id="toast-container"></div>
+
 
 <script>
 // ═══════════════════════════════════════════════════════
@@ -1224,8 +1367,9 @@ let DB = {
       opcije: ['Da, slažem se', 'Ne, nisam saglasan/na', 'Suzdržan/na'],
       krajDatum: '2026-06-15',
       aktivna: true,
-      glasovi: { 'a1': 0, 'b1': 0 },
+      glasovi: { 'a1': 0, 'b1': 0, 'c1': 0 },
       glasali: [],
+      detaljiGlasanja: [],
     },
     {
       id: 'a2', zev: 'fer', zevNaziv: 'ZEV Ferhadija 12',
@@ -1235,7 +1379,11 @@ let DB = {
       krajDatum: '2026-05-20',
       aktivna: false,
       glasovi: { 'a2': 12, 'b2': 5, 'c2': 3 },
-      glasali: ['10042', '10043'],
+      glasali: ['10043', '10044'],
+      detaljiGlasanja: [
+        { kod: '10043', ime: 'Ana Jovanović', odabraneOpcije: ['Mirna Kovačević'], datum: '2026-05-10T09:30:00' },
+        { kod: '10044', ime: 'Petar Petrović', odabraneOpcije: ['Igor Savić'], datum: '2026-05-11T14:15:00' },
+      ],
       zatvorena: true,
     },
   ],
@@ -1345,6 +1493,19 @@ DB.finansijskiPodaci = [
   { id: 'f5', zevId: 'oba', period: '04/2026', uplate: 2500.00, isplate: 1950.00, stanje: 6360.00, dugovanja: 315.00, napomena: '' },
 ];
 
+// Virtuelni savjetnik — baza znanja, per ZEV
+DB.savjetnik = [
+  { id: 's1', zevId: 'fer', pitanje: 'Ko je predsjednik skupštine?', odgovor: 'Predsjednik skupštine ZEV Ferhadija 12 je Mirna Kovačević.' },
+  { id: 's2', zevId: 'fer', pitanje: 'Koji je žiro račun zajednice?', odgovor: 'Žiro račun ZEV Ferhadija 12 je 123-456-00001234-56.' },
+  { id: 's3', zevId: 'oba', pitanje: 'Ko je predsjednik skupštine?', odgovor: 'Predsjednik skupštine ZEV Obala Luke Vukalovića 67 je Vukašin Dragić.' },
+];
+
+// Komšija+ — poslovni partneri (globalno, vidljivo svim ZEV-ovima)
+DB.partneri = [
+  { id: 'pt1', naziv: 'Majstor na sat', opis: '10% popusta za etažne vlasnike na sve popravke u domaćinstvu.', telefon: '+387 65 111 222', email: 'kontakt@majstornasat.ba', kategorija: 'ti-tool' },
+  { id: 'pt2', naziv: 'Eko čišćenje', opis: '15% popusta na prvu uslugu generalnog čišćenja stana ili zgrade.', telefon: '+387 61 333 444', email: 'info@ekociscenje.ba', kategorija: 'ti-leaf' },
+];
+
 let aktivniZevId = null;
 
 function popuniZevSelecte() {
@@ -1366,6 +1527,12 @@ function popuniZevSelecte() {
       sel.value = currentUser.aktivniZev;
     }
   });
+
+  // Ako je izvještaj već bio prikazan, automatski ga ponovo učitaj za novi ZEV
+  const sadrzaj = document.getElementById('izvjestaj-content');
+  if (sadrzaj && sadrzaj.style.display !== 'none' && document.getElementById('izv-zev')) {
+    ucitajIzvjestaj();
+  }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1926,6 +2093,8 @@ function doLogin(user) {
     document.getElementById('nav-admin-zevovi').style.display = 'inline-flex';
     document.getElementById('nav-admin-glasanje').style.display = 'inline-flex';
     document.getElementById('nav-admin-prijave').style.display = 'inline-flex';
+    document.getElementById('nav-admin-savjetnik').style.display = 'inline-flex';
+    document.getElementById('nav-admin-komsija').style.display = 'inline-flex';
     document.querySelectorAll('.vlasnik-only').forEach(el => el.style.display = 'none');
   } else {
     rb.textContent = 'Etažni vlasnik';
@@ -1941,6 +2110,7 @@ function doLogin(user) {
     sel.innerHTML = zevovi.map(z => `<option value="${z.id}">${z.naziv}</option>`).join('');
     document.getElementById('zev-selector-wrap').style.display = zevovi.length > 1 ? 'block' : 'none';
     document.getElementById('btn-poveci-nalog').style.display = 'inline-flex';
+    document.getElementById('nav-savjetnik').style.display = 'inline-flex';
   }
 
   showPage('glasanje');
@@ -1962,6 +2132,8 @@ function odjava() {
   document.getElementById('nav-admin-zevovi').style.display = 'none';
   document.getElementById('nav-admin-glasanje').style.display = 'none';
   document.getElementById('nav-admin-prijave').style.display = 'none';
+  document.getElementById('nav-admin-savjetnik').style.display = 'none';
+  document.getElementById('nav-admin-komsija').style.display = 'none';
   document.querySelectorAll('.vlasnik-only').forEach(el => el.style.display = 'none');
   document.getElementById('admin-user').value = '';
   document.getElementById('admin-pass').value = '';
@@ -2000,6 +2172,10 @@ function renderPage(id) {
   if (id === 'prijave') renderPrijaveVlasnik();
   if (id === 'admin-prijave') renderAdminPrijave();
   if (id === 'izvjestaji') initIzvjestaji();
+  if (id === 'savjetnik') renderSavjetnik();
+  if (id === 'admin-savjetnik') initAdminSavjetnik();
+  if (id === 'komsija') renderKomsijaVlasnik();
+  if (id === 'admin-komsija') renderAdminKomsija();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2093,26 +2269,26 @@ function glasaj(anketaId) {
   const selected = card.querySelectorAll('.vote-option.selected');
   if (selected.length === 0) { toast('Odaberite barem jednu opciju.', 'error'); return; }
 
+  const opcijeKeys = Object.keys(anketa.glasovi);
+  const odabraniIndeksi = [];
+
   selected.forEach(s => {
-    const idx = s.querySelector('input').value;
-    const key = Object.keys(anketa.glasovi)[idx];
-    if (key) anketa.glasovi[key] = (anketa.glasovi[key] || 0) + 1;
-    else {
-      const keys = Object.keys(anketa.glasovi);
-      anketa.glasovi[idx] = (anketa.glasovi[idx] || 0) + 1;
-    }
+    const idx = parseInt(s.querySelector('input').value);
+    odabraniIndeksi.push(idx);
+    const kljuc = opcijeKeys[idx];
+    if (kljuc) anketa.glasovi[kljuc] = (anketa.glasovi[kljuc] || 0) + 1;
   });
 
   anketa.glasali = anketa.glasali || [];
-  anketa.glasali.push(currentUser?.kod || 'admin');
+  anketa.glasali.push(currentUser?.kod);
 
-  // Jednostavniji prikaz glasova
-  const opcijeKeys = Object.keys(anketa.glasovi);
-  selected.forEach(s => {
-    const idx = parseInt(s.querySelector('input').value);
-    const kljuc = opcijeKeys[idx] || String.fromCharCode(97+idx) + anketaId;
-    if (!(kljuc in anketa.glasovi)) anketa.glasovi[kljuc] = 0;
-    anketa.glasovi[kljuc]++;
+  // Detaljno čuvanje ko je kako glasao (za admin export)
+  anketa.detaljiGlasanja = anketa.detaljiGlasanja || [];
+  anketa.detaljiGlasanja.push({
+    kod: currentUser?.kod,
+    ime: currentUser?.ime,
+    odabraneOpcije: odabraniIndeksi.map(i => anketa.opcije[i]),
+    datum: new Date().toISOString(),
   });
 
   toast('Vaš glas je zabilježen!', 'success');
@@ -2151,11 +2327,16 @@ function renderAdminGlasanje() {
   }).join('');
 }
 
+let trenutnaAnketaZaExport = null;
+
 function prikaziRezultate(anketaId) {
   const anketa = DB.ankete.find(a => a.id === anketaId);
   if (!anketa) return;
+  trenutnaAnketaZaExport = anketaId;
+
   const glasoviArr = Object.values(anketa.glasovi);
   const ukupno = glasoviArr.reduce((s,v) => s + v, 0);
+  const detalji = anketa.detaljiGlasanja || [];
 
   const html = `
     <div style="margin-bottom:16px;padding:12px 14px;background:var(--bg3);border-radius:var(--radius);font-size:13px;">
@@ -2173,10 +2354,54 @@ function prikaziRezultate(anketaId) {
           <div class="progress-fill" style="width:${pct}%"></div>
         </div>
       </div>`;
-    }).join('')}`;
+    }).join('')}
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);margin-bottom:10px">Ko je kako glasao (${detalji.length})</div>
+      ${detalji.length === 0
+        ? '<div style="font-size:12px;color:var(--text3)">Još nema zabilježenih glasova.</div>'
+        : detalji.map(d => `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--bg3);border-radius:var(--radius);margin-bottom:6px;font-size:12px">
+            <div>
+              <div style="font-weight:500">${d.ime}</div>
+              <div style="color:var(--text3);font-size:11px">${new Date(d.datum).toLocaleString('bs-BA')}</div>
+            </div>
+            <span class="badge badge-blue">${d.odabraneOpcije.join(', ')}</span>
+          </div>`).join('')}
+    </div>`;
 
   document.getElementById('rezultati-content').innerHTML = html;
   openModal('modal-rezultati');
+}
+
+function exportRezultateGlasanja() {
+  const anketa = DB.ankete.find(a => a.id === trenutnaAnketaZaExport);
+  if (!anketa) return;
+  const detalji = anketa.detaljiGlasanja || [];
+  const glasoviArr = Object.values(anketa.glasovi);
+  const ukupno = glasoviArr.reduce((s,v) => s + v, 0);
+
+  let tekst = `IZVJEŠTAJ O GLASANJU\n${'='.repeat(50)}\n\n`;
+  tekst += `ZEV: ${anketa.zevNaziv}\nPitanje: ${anketa.pitanje}\nUkupno glasova: ${ukupno}\nRok glasanja: ${new Date(anketa.krajDatum).toLocaleDateString('bs-BA')}\n\n`;
+  tekst += `REZULTATI PO OPCIJAMA:\n${'-'.repeat(50)}\n`;
+  anketa.opcije.forEach((op,i) => {
+    const g = glasoviArr[i] || 0;
+    const pct = ukupno > 0 ? Math.round(g/ukupno*100) : 0;
+    tekst += `${op}: ${g} glasova (${pct}%)\n`;
+  });
+  tekst += `\nKO JE KAKO GLASAO:\n${'-'.repeat(50)}\n`;
+  if (detalji.length === 0) tekst += 'Nema zabilježenih glasova.\n';
+  detalji.forEach(d => {
+    tekst += `${d.ime} (${d.kod}) — ${d.odabraneOpcije.join(', ')} — ${new Date(d.datum).toLocaleString('bs-BA')}\n`;
+  });
+
+  const blob = new Blob([tekst], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `rezultati-glasanja-${anketa.zevNaziv.replace(/\s+/g,'-')}-${anketa.id}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Izvještaj preuzet!', 'success');
 }
 
 function zatvoriAnketu(id) {
@@ -2211,6 +2436,7 @@ function kreirajAnketu() {
     aktivna: true,
     glasovi,
     glasali: [],
+    detaljiGlasanja: [],
   });
 
   closeModal('modal-nova-anketa');
@@ -2595,6 +2821,264 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 document.getElementById('anketa-zev')?.addEventListener('change', function() {
   document.getElementById('anketa-zev-naziv').value = ZEVOVI[this.value] || '';
 });
+
+// ═══════════════════════════════════════════════════════
+// VIRTUELNI SAVJETNIK
+// ═══════════════════════════════════════════════════════
+
+function dodajPorukuSavjetnik(tekst, tip) {
+  const cont = document.getElementById('savjetnik-poruke');
+  const div = document.createElement('div');
+  if (tip === 'bot') {
+    div.style.display = 'flex'; div.style.gap = '10px';
+    div.innerHTML = `
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="ti ti-message-chatbot" style="font-size:14px;color:var(--accent)"></i>
+      </div>
+      <div style="background:var(--bg3);border-radius:0 var(--radius) var(--radius) var(--radius);padding:10px 14px;font-size:13px;max-width:80%;line-height:1.5">${tekst}</div>`;
+  } else {
+    div.style.display = 'flex'; div.style.justifyContent = 'flex-end';
+    div.innerHTML = `<div style="background:var(--accent);color:#fff;border-radius:var(--radius) 0 var(--radius) var(--radius);padding:10px 14px;font-size:13px;max-width:80%;line-height:1.5">${tekst}</div>`;
+  }
+  cont.appendChild(div);
+  cont.scrollTop = cont.scrollHeight;
+}
+
+function renderSavjetnik() {
+  const cont = document.getElementById('savjetnik-poruke');
+  cont.innerHTML = '';
+  const zevNaziv = ZEVOVI[currentUser?.aktivniZev] || 'vašu zajednicu';
+  dodajPorukuSavjetnik(`Zdravo! Ja sam virtuelni savjetnik za <strong>${zevNaziv}</strong>. Postavite pitanje o vašoj zajednici, a ja ću odgovoriti na osnovu informacija koje je unio administrator.`, 'bot');
+}
+
+function postaviPitanjeSavjetniku() {
+  const input = document.getElementById('savjetnik-input');
+  const pitanje = input.value.trim();
+  if (!pitanje) return;
+
+  dodajPorukuSavjetnik(pitanje, 'korisnik');
+  input.value = '';
+
+  const zevId = currentUser?.aktivniZev;
+  const baza = DB.savjetnik.filter(s => s.zevId === zevId);
+
+  // Jednostavno pretraživanje po ključnim riječima
+  const pitanjeLower = pitanje.toLowerCase();
+  let najboljiMatch = null;
+  let najboljiScore = 0;
+
+  baza.forEach(unos => {
+    const rijeciPitanja = unos.pitanje.toLowerCase().split(/\s+/).filter(r => r.length > 3);
+    let score = 0;
+    rijeciPitanja.forEach(r => { if (pitanjeLower.includes(r)) score++; });
+    if (score > najboljiScore) { najboljiScore = score; najboljiMatch = unos; }
+  });
+
+  setTimeout(() => {
+    if (najboljiMatch && najboljiScore > 0) {
+      dodajPorukuSavjetnik(najboljiMatch.odgovor, 'bot');
+    } else {
+      dodajPorukuSavjetnik('Nažalost, nemam informaciju o tome u bazi znanja za vašu zajednicu. Molimo kontaktirajte administratora ili ovlašteno lice za detaljnije informacije.', 'bot');
+    }
+  }, 400);
+}
+
+function initAdminSavjetnik() {
+  const sel = document.getElementById('admin-savj-zev');
+  sel.innerHTML = DB.zevovi.map(z => `<option value="${z.id}">${z.naziv}</option>`).join('');
+  renderAdminSavjetnikLista();
+}
+
+function renderAdminSavjetnikLista() {
+  const zevId = document.getElementById('admin-savj-zev')?.value;
+  const cont = document.getElementById('admin-savjetnik-lista');
+  const unosi = DB.savjetnik.filter(s => s.zevId === zevId);
+
+  if (unosi.length === 0) {
+    cont.innerHTML = '<div class="empty"><i class="ti ti-message-chatbot"></i><p>Nema unesenih informacija za ovaj ZEV. Kliknite "Novi unos".</p></div>';
+    return;
+  }
+
+  cont.innerHTML = unosi.map(s => `
+    <div class="card">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px;margin-bottom:6px">${s.pitanje}</div>
+          <div style="font-size:13px;color:var(--text2)">${s.odgovor}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-sm" onclick="urediUnosSavjetnik('${s.id}')"><i class="ti ti-edit"></i></button>
+          <button class="btn btn-sm btn-danger" onclick="obrisiUnosSavjetnik('${s.id}')"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function openNoviUnosSavjetnik() {
+  document.getElementById('savj-modal-naslov').textContent = 'Novi unos u bazu znanja';
+  document.getElementById('savj-zev').innerHTML = DB.zevovi.map(z => `<option value="${z.id}">${z.naziv}</option>`).join('');
+  document.getElementById('savj-zev').value = document.getElementById('admin-savj-zev')?.value || DB.zevovi[0]?.id;
+  document.getElementById('savj-pitanje').value = '';
+  document.getElementById('savj-odgovor').value = '';
+  document.getElementById('savj-edit-id').value = '';
+  openModal('modal-novi-unos-savjetnik');
+}
+
+function urediUnosSavjetnik(id) {
+  const s = DB.savjetnik.find(s => s.id === id);
+  if (!s) return;
+  document.getElementById('savj-modal-naslov').textContent = 'Uredi unos';
+  document.getElementById('savj-zev').innerHTML = DB.zevovi.map(z => `<option value="${z.id}">${z.naziv}</option>`).join('');
+  document.getElementById('savj-zev').value = s.zevId;
+  document.getElementById('savj-pitanje').value = s.pitanje;
+  document.getElementById('savj-odgovor').value = s.odgovor;
+  document.getElementById('savj-edit-id').value = id;
+  openModal('modal-novi-unos-savjetnik');
+}
+
+function snimiUnosSavjetnik() {
+  const zevId = document.getElementById('savj-zev').value;
+  const pitanje = document.getElementById('savj-pitanje').value.trim();
+  const odgovor = document.getElementById('savj-odgovor').value.trim();
+  const editId = document.getElementById('savj-edit-id').value;
+
+  if (!pitanje) { toast('Unesite pitanje ili temu.', 'error'); return; }
+  if (!odgovor) { toast('Unesite odgovor.', 'error'); return; }
+
+  if (editId) {
+    const s = DB.savjetnik.find(s => s.id === editId);
+    if (s) Object.assign(s, { zevId, pitanje, odgovor });
+    toast('Unos ažuriran!', 'success');
+  } else {
+    DB.savjetnik.push({ id: 's' + Date.now(), zevId, pitanje, odgovor });
+    toast('Unos uspješno dodan!', 'success');
+  }
+
+  closeModal('modal-novi-unos-savjetnik');
+  document.getElementById('admin-savj-zev').value = zevId;
+  renderAdminSavjetnikLista();
+}
+
+function obrisiUnosSavjetnik(id) {
+  if (!confirm('Obrisati ovaj unos iz baze znanja?')) return;
+  DB.savjetnik = DB.savjetnik.filter(s => s.id !== id);
+  toast('Unos obrisan.', 'success');
+  renderAdminSavjetnikLista();
+}
+
+// Enter za savjetnik chat
+document.getElementById('savjetnik-input')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') postaviPitanjeSavjetniku();
+});
+
+// ═══════════════════════════════════════════════════════
+// KOMŠIJA+
+// ═══════════════════════════════════════════════════════
+
+function renderKomsijaVlasnik() {
+  const cont = document.getElementById('komsija-lista');
+  if (DB.partneri.length === 0) {
+    cont.innerHTML = '<div class="empty" style="grid-column:1/-1"><i class="ti ti-discount-2"></i><p>Trenutno nema dostupnih partnera.</p></div>';
+    return;
+  }
+
+  cont.innerHTML = DB.partneri.map(p => `
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="width:38px;height:38px;border-radius:10px;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="ti ${p.kategorija}" style="font-size:18px;color:var(--accent)"></i>
+        </div>
+        <div style="font-weight:600;font-size:14px">${p.naziv}</div>
+      </div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.5">${p.opis}</p>
+      <div style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text3);border-top:1px solid var(--border);padding-top:10px">
+        ${p.telefon ? `<span><i class="ti ti-phone"></i> ${p.telefon}</span>` : ''}
+        ${p.email ? `<span><i class="ti ti-mail"></i> ${p.email}</span>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+function renderAdminKomsija() {
+  const cont = document.getElementById('admin-komsija-lista');
+  if (DB.partneri.length === 0) {
+    cont.innerHTML = '<div class="empty" style="grid-column:1/-1"><i class="ti ti-discount-2"></i><p>Nema partnera. Kliknite "Novi partner".</p></div>';
+    return;
+  }
+
+  cont.innerHTML = DB.partneri.map(p => `
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="width:38px;height:38px;border-radius:10px;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="ti ${p.kategorija}" style="font-size:18px;color:var(--accent)"></i>
+        </div>
+        <div style="font-weight:600;font-size:14px;flex:1">${p.naziv}</div>
+      </div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.5">${p.opis}</p>
+      <div style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text3);border-top:1px solid var(--border);padding-top:10px;margin-bottom:12px">
+        ${p.telefon ? `<span><i class="ti ti-phone"></i> ${p.telefon}</span>` : ''}
+        ${p.email ? `<span><i class="ti ti-mail"></i> ${p.email}</span>` : ''}
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm" style="flex:1" onclick="urediPartnera('${p.id}')"><i class="ti ti-edit"></i> Uredi</button>
+        <button class="btn btn-sm btn-danger" onclick="obrisiPartnera('${p.id}')"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`).join('');
+}
+
+function openNoviPartner() {
+  document.getElementById('partner-modal-naslov').textContent = 'Novi partner';
+  document.getElementById('partner-naziv').value = '';
+  document.getElementById('partner-opis').value = '';
+  document.getElementById('partner-telefon').value = '';
+  document.getElementById('partner-email').value = '';
+  document.getElementById('partner-kategorija').value = 'ti-tool';
+  document.getElementById('partner-edit-id').value = '';
+  openModal('modal-novi-partner');
+}
+
+function urediPartnera(id) {
+  const p = DB.partneri.find(p => p.id === id);
+  if (!p) return;
+  document.getElementById('partner-modal-naslov').textContent = 'Uredi partnera';
+  document.getElementById('partner-naziv').value = p.naziv;
+  document.getElementById('partner-opis').value = p.opis;
+  document.getElementById('partner-telefon').value = p.telefon || '';
+  document.getElementById('partner-email').value = p.email || '';
+  document.getElementById('partner-kategorija').value = p.kategorija;
+  document.getElementById('partner-edit-id').value = id;
+  openModal('modal-novi-partner');
+}
+
+function snimiPartnera() {
+  const naziv = document.getElementById('partner-naziv').value.trim();
+  const opis = document.getElementById('partner-opis').value.trim();
+  const telefon = document.getElementById('partner-telefon').value.trim();
+  const email = document.getElementById('partner-email').value.trim();
+  const kategorija = document.getElementById('partner-kategorija').value;
+  const editId = document.getElementById('partner-edit-id').value;
+
+  if (!naziv) { toast('Unesite naziv partnera.', 'error'); return; }
+  if (!opis) { toast('Unesite opis usluge.', 'error'); return; }
+
+  if (editId) {
+    const p = DB.partneri.find(p => p.id === editId);
+    if (p) Object.assign(p, { naziv, opis, telefon, email, kategorija });
+    toast('Partner ažuriran!', 'success');
+  } else {
+    DB.partneri.push({ id: 'pt' + Date.now(), naziv, opis, telefon, email, kategorija });
+    toast('Partner uspješno dodan!', 'success');
+  }
+
+  closeModal('modal-novi-partner');
+  renderAdminKomsija();
+}
+
+function obrisiPartnera(id) {
+  if (!confirm('Obrisati ovog partnera?')) return;
+  DB.partneri = DB.partneri.filter(p => p.id !== id);
+  toast('Partner obrisan.', 'success');
+  renderAdminKomsija();
+}
 
 // ═══════════════════════════════════════════════════════
 // TOAST

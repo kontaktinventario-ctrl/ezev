@@ -972,7 +972,10 @@ body.admin .admin-only-block { display: block; }
     </div>
     <div class="field">
       <label>Slika (opciono)</label>
-      <input type="file" id="prijava-slika" accept="image/*">
+      <input type="file" id="prijava-slika" accept="image/*" onchange="previewSlikaPrijave(this)">
+      <div id="prijava-slika-preview" style="display:none;margin-top:10px">
+        <img id="prijava-slika-preview-img" style="max-width:100%;max-height:180px;border-radius:var(--radius);border:1px solid var(--border)">
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('modal-nova-prijava')">Odustani</button>
@@ -983,9 +986,15 @@ body.admin .admin-only-block { display: block; }
 
 <!-- Odgovor na prijavu (admin) -->
 <div class="modal-overlay" id="modal-odgovor">
-  <div class="modal">
-    <div class="modal-title">Odgovor na prijavu</div>
-    <div id="odgovor-info" style="margin-bottom:16px; padding:12px 14px; background:var(--bg3); border-radius:var(--radius); font-size:13px; color:var(--text2);"></div>
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title" style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <span>Odgovor na prijavu</span>
+      <button class="btn btn-sm" onclick="exportPrijavaPdf()"><i class="ti ti-file-type-pdf"></i> Export PDF</button>
+    </div>
+    <div id="odgovor-info" style="margin-bottom:12px; padding:12px 14px; background:var(--bg3); border-radius:var(--radius); font-size:13px; color:var(--text2);"></div>
+    <div id="odgovor-slika-wrap" style="display:none;margin-bottom:16px">
+      <img id="odgovor-slika-img" style="max-width:100%;max-height:240px;border-radius:var(--radius);border:1px solid var(--border);cursor:pointer" onclick="window.open(this.src,'_blank')">
+    </div>
     <div class="field">
       <label>Vaš odgovor</label>
       <textarea id="odgovor-tekst" placeholder="Unesite odgovor..." rows="4"></textarea>
@@ -2481,6 +2490,7 @@ function renderPrijaveVlasnik() {
         </div>
         ${statusChip(p.status)}
       </div>
+      ${p.slikaUrl ? `<img src="${p.slikaUrl}" alt="Slika problema" style="max-width:220px;max-height:160px;border-radius:var(--radius);border:1px solid var(--border);margin-bottom:10px;cursor:pointer;display:block" onclick="window.open(this.src,'_blank')">` : ''}
       ${p.odgovor ? `
         <div style="background:var(--accent-glow);border:1px solid rgba(79,127,255,0.2);border-radius:var(--radius);padding:12px 14px;margin-top:10px">
           <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:5px">
@@ -2505,6 +2515,7 @@ function renderAdminPrijave() {
           <div style="font-size:12px;color:var(--text3);margin-bottom:3px">${p.zevNaziv} · ${p.korisnikIme} · ${new Date(p.datum).toLocaleDateString('bs-BA')}</div>
           <div style="font-weight:600;font-size:15px;margin-bottom:5px">${p.naslov}</div>
           <p style="font-size:13px;color:var(--text2);margin-bottom:8px">${p.opis}</p>
+          ${p.slikaUrl ? `<img src="${p.slikaUrl}" alt="Slika problema" style="max-width:160px;max-height:120px;border-radius:var(--radius);border:1px solid var(--border);margin-bottom:8px;cursor:pointer;display:block" onclick="window.open(this.src,'_blank')">` : ''}
           ${p.odgovor ? `<div style="font-size:12px;color:var(--text3)"><i class="ti ti-message-reply"></i> Odgovoreno: "${p.odgovor.slice(0,60)}..."</div>` : ''}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
@@ -2512,41 +2523,81 @@ function renderAdminPrijave() {
           <button class="btn btn-sm" onclick="openOdgovor('${p.id}')">
             <i class="ti ti-message"></i> ${p.odgovor ? 'Izmijeni odgovor' : 'Odgovori'}
           </button>
+          <button class="btn btn-sm" onclick="exportPrijavaPdf('${p.id}')">
+            <i class="ti ti-file-type-pdf"></i> Export PDF
+          </button>
         </div>
       </div>
     </div>`).join('');
+}
+
+function previewSlikaPrijave(input) {
+  const wrap = document.getElementById('prijava-slika-preview');
+  const img = document.getElementById('prijava-slika-preview-img');
+  const file = input.files?.[0];
+  if (!file) { wrap.style.display = 'none'; img.src = ''; return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    img.src = e.target.result;
+    wrap.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
 }
 
 function kreirajPrijavu() {
   const zev = currentUser?.aktivniZev;
   const naslov = document.getElementById('prijava-naslov').value.trim();
   const opis = document.getElementById('prijava-opis').value.trim();
+  const slikaInput = document.getElementById('prijava-slika');
+  const file = slikaInput.files?.[0];
 
   if (!naslov) { toast('Unesite naslov.', 'error'); return; }
   if (!opis) { toast('Unesite opis.', 'error'); return; }
 
-  DB.prijave.unshift({
-    id: 'p' + Date.now(),
-    zev, zevNaziv: ZEVOVI[zev],
-    korisnikKod: currentUser?.kod,
-    korisnikIme: currentUser?.ime,
-    naslov, opis,
-    status: 'NOVA',
-    odgovor: null,
-    datum: new Date().toISOString().split('T')[0],
-  });
+  const sacuvajPrijavu = (slikaUrl) => {
+    DB.prijave.unshift({
+      id: 'p' + Date.now(),
+      zev, zevNaziv: ZEVOVI[zev],
+      korisnikKod: currentUser?.kod,
+      korisnikIme: currentUser?.ime,
+      naslov, opis,
+      slikaUrl: slikaUrl || null,
+      status: 'NOVA',
+      odgovor: null,
+      datum: new Date().toISOString().split('T')[0],
+    });
 
-  closeModal('modal-nova-prijava');
-  document.getElementById('prijava-naslov').value = '';
-  document.getElementById('prijava-opis').value = '';
-  toast('Prijava uspješno poslana!', 'success');
-  renderPrijaveVlasnik();
+    closeModal('modal-nova-prijava');
+    document.getElementById('prijava-naslov').value = '';
+    document.getElementById('prijava-opis').value = '';
+    slikaInput.value = '';
+    document.getElementById('prijava-slika-preview').style.display = 'none';
+    toast('Prijava uspješno poslana!', 'success');
+    renderPrijaveVlasnik();
+  };
+
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (e) => sacuvajPrijavu(e.target.result);
+    reader.readAsDataURL(file);
+  } else {
+    sacuvajPrijavu(null);
+  }
 }
 
 function openOdgovor(prijavId) {
   const p = DB.prijave.find(p => p.id === prijavId);
   if (!p) return;
-  document.getElementById('odgovor-info').innerHTML = `<strong>${p.naslov}</strong><br><span style="color:var(--text2)">${p.korisnikIme} · ${p.zevNaziv}</span>`;
+  document.getElementById('odgovor-info').innerHTML = `<strong>${p.naslov}</strong><br><span style="color:var(--text2)">${p.korisnikIme} · ${p.zevNaziv}</span><br><span style="color:var(--text2)">${p.opis}</span>`;
+  const slikaWrap = document.getElementById('odgovor-slika-wrap');
+  const slikaImg = document.getElementById('odgovor-slika-img');
+  if (p.slikaUrl) {
+    slikaImg.src = p.slikaUrl;
+    slikaWrap.style.display = 'block';
+  } else {
+    slikaWrap.style.display = 'none';
+    slikaImg.src = '';
+  }
   document.getElementById('odgovor-tekst').value = p.odgovor || '';
   document.getElementById('odgovor-status').value = p.status;
   document.getElementById('odgovor-prijava-id').value = prijavId;
@@ -2566,6 +2617,97 @@ function posaljiOdgovor() {
   closeModal('modal-odgovor');
   toast('Odgovor poslan!', 'success');
   renderAdminPrijave();
+}
+
+function statusNaziv(status) {
+  if (status === 'NOVA') return 'Nova';
+  if (status === 'U_TOKU') return 'U toku';
+  if (status === 'RIJESENO') return 'Riješeno';
+  return status;
+}
+
+// Export prijave problema u PDF (putem browser print dijaloga — "Save as PDF")
+// Ako je proslijeđen prijavId, exportuje tu konkretnu prijavu.
+// Ako nije (poziv iz modala odgovora), uzima prijavu otvorenu u modalu.
+function exportPrijavaPdf(prijavId) {
+  const id = prijavId || document.getElementById('odgovor-prijava-id').value;
+  const p = DB.prijave.find(p => p.id === id);
+  if (!p) { toast('Prijava nije pronađena.', 'error'); return; }
+
+  const win = window.open('', '_blank');
+  if (!win) { toast('Dozvolite pop-up prozore za export PDF-a.', 'error'); return; }
+
+  win.document.write(`<!DOCTYPE html>
+<html lang="bs"><head><meta charset="UTF-8">
+<title>Prijava problema — ${p.naslov}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; color: #1a1a1a; padding: 36px; max-width: 720px; margin: 0 auto; }
+  .header { border-bottom: 3px solid #1a3a6b; padding-bottom: 14px; margin-bottom: 24px; display:flex; justify-content:space-between; align-items:flex-start; }
+  .header h1 { font-size: 19px; color: #1a3a6b; margin: 0 0 4px; }
+  .header .sub { font-size: 12px; color: #666; }
+  .badge { display:inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .badge-nova { background:#fdf3d8; color:#9a7000; }
+  .badge-utoku { background:#dce8ff; color:#1a4fb0; }
+  .badge-rijeseno { background:#d8f5e8; color:#0f7a4d; }
+  .row { display:flex; margin-bottom:14px; gap: 24px; }
+  .field { flex:1; }
+  .field .label { font-size: 10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#888; margin-bottom: 4px; }
+  .field .val { font-size: 14px; }
+  .opis-box { background:#f5f6f8; border-radius:8px; padding:16px; margin: 16px 0; font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+  .opis-box .label { font-size: 10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#888; margin-bottom: 8px; }
+  img.problem-slika { max-width: 100%; max-height: 380px; border-radius: 8px; border: 1px solid #ddd; margin: 16px 0; display:block; }
+  .odgovor-box { background:#eef3ff; border-left: 4px solid #1a3a6b; border-radius: 0 8px 8px 0; padding:16px; margin-top: 20px; }
+  .odgovor-box .label { font-size: 10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#1a3a6b; margin-bottom: 8px; }
+  .footer { margin-top: 36px; padding-top: 14px; border-top: 1px solid #ddd; font-size: 10px; color: #999; text-align:center; }
+  @media print { body { padding: 16px; } }
+</style></head>
+<body>
+  <div class="header">
+    <div>
+      <h1>Prijava problema</h1>
+      <div class="sub">e-ZEV · ${p.zevNaziv}</div>
+    </div>
+    <span class="badge badge-${p.status === 'NOVA' ? 'nova' : p.status === 'U_TOKU' ? 'utoku' : 'rijeseno'}">${statusNaziv(p.status)}</span>
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <div class="label">Prijavio/la</div>
+      <div class="val">${p.korisnikIme}</div>
+    </div>
+    <div class="field">
+      <div class="label">Datum prijave</div>
+      <div class="val">${new Date(p.datum).toLocaleDateString('bs-BA')}</div>
+    </div>
+    <div class="field">
+      <div class="label">ZEV</div>
+      <div class="val">${p.zevNaziv}</div>
+    </div>
+  </div>
+
+  <div class="opis-box">
+    <div class="label">Naslov</div>
+    <div style="font-weight:600;font-size:15px;margin-bottom:12px">${p.naslov}</div>
+    <div class="label">Opis problema</div>
+    <div>${p.opis}</div>
+  </div>
+
+  ${p.slikaUrl ? `<img class="problem-slika" src="${p.slikaUrl}" alt="Slika problema">` : ''}
+
+  ${p.odgovor ? `
+  <div class="odgovor-box">
+    <div class="label">Odgovor administratora</div>
+    <div style="font-size:13px;line-height:1.6">${p.odgovor}</div>
+  </div>` : ''}
+
+  <div class="footer">Generisano putem e-ZEV aplikacije · ${new Date().toLocaleString('bs-BA')}</div>
+
+  <scr` + `ipt>
+    window.onload = function() { setTimeout(function(){ window.print(); }, 300); };
+  </scr` + `ipt>
+</body></html>`);
+  win.document.close();
 }
 
 // ═══════════════════════════════════════════════════════

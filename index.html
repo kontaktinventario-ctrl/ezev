@@ -497,11 +497,184 @@ body.admin .admin-only { display: flex; }
 body.admin .admin-only-block { display: block; }
 
 /* ─── RESPONSIVE ─────────────────────────────────────── */
-@media (max-width: 600px) {
-  .content { padding: 16px; }
-  .topbar { padding: 0 14px; }
-  .login-card { padding: 32px 24px; }
+
+/* Mobilni hamburger meni */
+.hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius);
+  border: none;
+  background: transparent;
+}
+.hamburger span {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: var(--text2);
+  border-radius: 2px;
+  transition: all 0.2s;
+}
+
+/* Mobilni meni overlay */
+.mobile-nav-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 150;
+}
+.mobile-nav-overlay.open { display: block; }
+
+.mobile-nav {
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  width: 260px;
+  background: var(--bg2);
+  border-right: 1px solid var(--border2);
+  z-index: 160;
+  overflow-y: auto;
+  padding: 16px 0;
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+}
+.mobile-nav.open { transform: translateX(0); }
+
+.mobile-nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.mobile-nav-logo {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 15px; font-weight: 700;
+}
+.mobile-nav-logo-mark {
+  width: 26px; height: 26px;
+  background: linear-gradient(135deg, var(--accent), #7b9fff);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: #fff;
+}
+.mobile-nav-close {
+  background: none; border: none; color: var(--text2);
+  font-size: 20px; cursor: pointer; padding: 4px;
+}
+.mobile-nav .nav-btn {
+  display: flex !important;
+  width: calc(100% - 16px);
+  margin: 2px 8px;
+  border-radius: var(--radius);
+  justify-content: flex-start;
+}
+.mobile-user-info {
+  padding: 12px 16px;
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text2);
+}
+
+@media (max-width: 700px) {
+  /* Topbar */
+  .topbar { padding: 0 12px; gap: 10px; height: 52px; }
+  .topbar-logo span { display: none; }
+  .topbar-nav { display: none; }
+  .hamburger { display: flex; }
+  .topbar-right { gap: 8px; }
+  .user-chip { padding: 4px 8px 4px 4px; }
+  .user-chip span:not(.role-badge) { display: none; }
+  .role-badge { display: none; }
+  .btn-odjava span { display: none; }
+  .btn-odjava { padding: 6px 8px; }
+  #zev-selector-wrap select { max-width: 120px; font-size: 11px; }
+
+  /* Content */
+  .content { padding: 12px; }
+
+  /* Cards */
+  .card { padding: 14px 14px; }
+
+  /* Page headers */
+  .page-header { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+  .page-header .btn { width: 100%; justify-content: center; }
+
+  /* Stats grid */
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { padding: 10px 12px; }
+  .stat-val { font-size: 18px; }
+
+  /* Login */
+  .login-card { padding: 28px 18px; margin: 12px; }
+  .login-title { font-size: 20px; }
+
+  /* Modali */
+  .modal { padding: 20px 16px; margin: 8px; max-width: calc(100vw - 16px) !important; }
+  .modal-title { font-size: 15px; }
   .field-row { grid-template-columns: 1fr; }
+
+  /* Tabele — horizontalni scroll */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 500px; }
+
+  /* Vote opcije */
+  .vote-option { padding: 10px 12px; }
+
+  /* Topbar desna strana - ZEV selector */
+  #zev-selector-wrap { order: -1; }
+
+  /* Kartica za ZEV-ove */
+  #admin-zevovi-lista .card > div { flex-direction: column !important; }
+  #admin-zevovi-lista .card > div > div:last-child {
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    flex-wrap: wrap;
+  }
+
+  /* Admin prijave i glasanje - dugmad ispod sadržaja */
+  #admin-prijave-lista .card > div,
+  #admin-glasanje-lista .card > div {
+    flex-direction: column !important;
+  }
+  #admin-prijave-lista .card > div > div:last-child,
+  #admin-glasanje-lista .card > div > div:last-child {
+    flex-direction: row !important;
+    flex-wrap: wrap;
+    justify-content: flex-start !important;
+    align-items: center !important;
+  }
+
+  /* Komšija+ grid */
+  #komsija-lista, #admin-komsija-lista {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Savjetnik chat */
+  #page-savjetnik .card { height: 420px; }
+
+  /* Vlasnici tabela - scroll */
+  #vlasnici-tbody td:nth-child(7),
+  #vlasnici-tbody td:nth-child(8) { font-size: 11px; }
+
+  /* Section header */
+  .section-header { flex-direction: column; align-items: flex-start !important; gap: 10px; }
+
+  /* Filter bar izvještaji */
+  #izv-filter-card > div { gap: 8px; }
+  #izv-filter-card select,
+  #izv-filter-card input { width: 100% !important; }
+}
+
+@media (max-width: 400px) {
+  .login-card { padding: 22px 14px; }
+  .stats-grid { grid-template-columns: 1fr; }
+  .modal { padding: 16px 12px; }
 }
 </style>
 </head>
@@ -562,6 +735,9 @@ body.admin .admin-only-block { display: block; }
 
   <!-- TOPBAR -->
   <div class="topbar">
+    <button class="hamburger" id="hamburger-btn" onclick="toggleMobileNav()" aria-label="Meni">
+      <span></span><span></span><span></span>
+    </button>
     <div class="topbar-logo">
       <div class="topbar-logo-mark">eZ</div>
       e-ZEV
@@ -617,6 +793,21 @@ body.admin .admin-only-block { display: block; }
         <i class="ti ti-logout"></i> Odjava
       </button>
     </div>
+  </div>
+
+  <!-- MOBILNI MENI -->
+  <div class="mobile-nav-overlay" id="mobile-nav-overlay" onclick="closeMobileNav()"></div>
+  <div class="mobile-nav" id="mobile-nav">
+    <div class="mobile-nav-header">
+      <div class="mobile-nav-logo">
+        <div class="mobile-nav-logo-mark">eZ</div>
+        e-ZEV
+      </div>
+      <button class="mobile-nav-close" onclick="closeMobileNav()"><i class="ti ti-x"></i></button>
+    </div>
+    <!-- Nav stavke se generišu dinamički u JS -->
+    <div id="mobile-nav-stavke"></div>
+    <div class="mobile-user-info" id="mobile-user-info"></div>
   </div>
 
   <!-- CONTENT -->
@@ -2238,6 +2429,7 @@ function doLogin(user) {
     document.getElementById('nav-savjetnik').style.display = 'inline-flex';
   }
 
+  popuniMobilniMeni();
   showPage('glasanje');
 }
 
@@ -2280,6 +2472,61 @@ document.addEventListener('keydown', (e) => {
 // NAVIGACIJA
 // ═══════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════
+// MOBILNI MENI
+// ═══════════════════════════════════════════════════════
+
+function toggleMobileNav() {
+  document.getElementById('mobile-nav').classList.toggle('open');
+  document.getElementById('mobile-nav-overlay').classList.toggle('open');
+}
+
+function closeMobileNav() {
+  document.getElementById('mobile-nav').classList.remove('open');
+  document.getElementById('mobile-nav-overlay').classList.remove('open');
+}
+
+function popuniMobilniMeni() {
+  const stavke = document.getElementById('mobile-nav-stavke');
+  const jeAdmin = currentUser?.tip === 'admin';
+
+  const sveStavke = [
+    { id: 'glasanje', icon: 'ti-checkup-list', naziv: 'Glasanje online', samo: 'vlasnik' },
+    { id: 'prijave', icon: 'ti-tool', naziv: 'Prijava problema', samo: 'vlasnik' },
+    { id: 'izvjestaji', icon: 'ti-chart-bar', naziv: 'Izvještaji', samo: null },
+    { id: 'savjetnik', icon: 'ti-message-chatbot', naziv: 'Virtuelni savjetnik', samo: 'vlasnik' },
+    { id: 'komsija', icon: 'ti-discount-2', naziv: 'Komšija+', samo: null },
+    { id: 'admin-zevovi', icon: 'ti-building-community', naziv: 'ZEV-ovi', samo: 'admin' },
+    { id: 'admin-glasanje', icon: 'ti-settings', naziv: 'Glasanje (admin)', samo: 'admin' },
+    { id: 'admin-prijave', icon: 'ti-inbox', naziv: 'Primljene prijave', samo: 'admin' },
+    { id: 'admin-savjetnik', icon: 'ti-message-chatbot', naziv: 'Savjetnik (admin)', samo: 'admin' },
+    { id: 'admin-komsija', icon: 'ti-discount-2', naziv: 'Komšija+ (admin)', samo: 'admin' },
+  ].filter(s => {
+    if (s.samo === 'admin') return jeAdmin;
+    if (s.samo === 'vlasnik') return !jeAdmin;
+    return true;
+  });
+
+  stavke.innerHTML = sveStavke.map(s => `
+    <button class="nav-btn" id="mob-nav-${s.id}" onclick="showPage('${s.id}');closeMobileNav()">
+      <i class="ti ${s.icon}"></i> ${s.naziv}
+    </button>`).join('');
+
+  document.getElementById('mobile-user-info').innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#7b9fff);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff">
+        ${currentUser?.ime?.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
+      </div>
+      <div>
+        <div style="font-weight:500;color:var(--text)">${currentUser?.ime}</div>
+        <div style="font-size:11px;color:var(--text3)">${jeAdmin ? 'Administrator' : 'Etažni vlasnik'}</div>
+      </div>
+    </div>
+    <button class="btn btn-sm" style="width:100%;justify-content:center" onclick="odjava();closeMobileNav()">
+      <i class="ti ti-logout"></i> Odjava
+    </button>`;
+}
+
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -2287,6 +2534,9 @@ function showPage(id) {
   if (page) page.classList.add('active');
   const nav = document.getElementById('nav-' + id);
   if (nav) nav.classList.add('active');
+  // Ažuriraj i aktivno stanje u mobilnom meniju
+  const mobNav = document.getElementById('mob-nav-' + id);
+  if (mobNav) mobNav.classList.add('active');
   renderPage(id);
 }
 
@@ -2436,16 +2686,17 @@ function renderAdminGlasanje() {
         <div style="flex:1">
           <div style="font-size:12px;color:var(--text3);margin-bottom:3px">${a.zevNaziv} · ${a.tip === 'jedan' ? 'Jedan odabir' : 'Više odabira'}</div>
           <div style="font-weight:600;margin-bottom:8px">${a.pitanje}</div>
-          <div style="font-size:12px;color:var(--text3);display:flex;gap:14px">
+          <div style="font-size:12px;color:var(--text3);display:flex;gap:14px;flex-wrap:wrap">
             <span><i class="ti ti-users"></i> ${ukupno} glasova</span>
             <span><i class="ti ti-calendar"></i> Do ${new Date(a.krajDatum).toLocaleDateString('bs-BA')}</span>
           </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:7px;align-items:flex-end">
           <span class="badge ${zatvorena ? 'badge-gray' : 'badge-green'}">${zatvorena ? 'Zatvoreno' : 'Aktivno'}</span>
-          <div style="display:flex;gap:6px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
             <button class="btn btn-sm" onclick="prikaziRezultate('${a.id}')"><i class="ti ti-chart-bar"></i> Rezultati</button>
             ${!zatvorena ? `<button class="btn btn-sm btn-danger" onclick="zatvoriAnketu('${a.id}')"><i class="ti ti-lock"></i> Zatvori</button>` : ''}
+            <button class="btn btn-sm btn-danger" onclick="obrisiAnketu('${a.id}')"><i class="ti ti-trash"></i></button>
           </div>
         </div>
       </div>
@@ -2506,34 +2757,104 @@ function exportRezultateGlasanja() {
   const glasoviArr = Object.values(anketa.glasovi);
   const ukupno = glasoviArr.reduce((s,v) => s + v, 0);
 
-  let tekst = `IZVJEŠTAJ O GLASANJU\n${'='.repeat(50)}\n\n`;
-  tekst += `ZEV: ${anketa.zevNaziv}\nPitanje: ${anketa.pitanje}\nUkupno glasova: ${ukupno}\nRok glasanja: ${new Date(anketa.krajDatum).toLocaleDateString('bs-BA')}\n\n`;
-  tekst += `REZULTATI PO OPCIJAMA:\n${'-'.repeat(50)}\n`;
-  anketa.opcije.forEach((op,i) => {
-    const g = glasoviArr[i] || 0;
-    const pct = ukupno > 0 ? Math.round(g/ukupno*100) : 0;
-    tekst += `${op}: ${g} glasova (${pct}%)\n`;
-  });
-  tekst += `\nKO JE KAKO GLASAO:\n${'-'.repeat(50)}\n`;
-  if (detalji.length === 0) tekst += 'Nema zabilježenih glasova.\n';
-  detalji.forEach(d => {
-    tekst += `${d.ime} (${d.kod}) — ${d.odabraneOpcije.join(', ')} — ${new Date(d.datum).toLocaleString('bs-BA')}\n`;
-  });
+  const win = window.open('', '_blank');
+  if (!win) { toast('Dozvolite pop-up prozore za export PDF-a.', 'error'); return; }
 
-  const blob = new Blob([tekst], { type: 'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `rezultati-glasanja-${anketa.zevNaziv.replace(/\s+/g,'-')}-${anketa.id}.txt`;
-  a.click();
-  URL.revokeObjectURL(url);
-  toast('Izvještaj preuzet!', 'success');
+  const opcijeHTML = anketa.opcije.map((op, i) => {
+    const g = glasoviArr[i] || 0;
+    const pct = ukupno > 0 ? Math.round(g / ukupno * 100) : 0;
+    const barW = pct;
+    return `<div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px">
+        <span style="font-weight:500">${op}</span>
+        <span style="color:#555">${g} glasova (${pct}%)</span>
+      </div>
+      <div style="height:8px;background:#e8eaf0;border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${barW}%;background:linear-gradient(90deg,#1a3a6b,#4f7fff);border-radius:4px"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const detaljiHTML = detalji.length === 0
+    ? '<p style="color:#888;font-size:13px">Nema zabilježenih pojedinačnih glasova.</p>'
+    : `<table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:#f0f2f5">
+            <th style="text-align:left;padding:8px 10px;border-bottom:2px solid #ddd">Vlasnik</th>
+            <th style="text-align:left;padding:8px 10px;border-bottom:2px solid #ddd">Kod</th>
+            <th style="text-align:left;padding:8px 10px;border-bottom:2px solid #ddd">Odabrao/la</th>
+            <th style="text-align:left;padding:8px 10px;border-bottom:2px solid #ddd">Datum i vrijeme</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${detalji.map((d, i) => `
+            <tr style="background:${i % 2 === 0 ? '#fff' : '#f8f9fb'}">
+              <td style="padding:8px 10px;border-bottom:1px solid #eee">${d.ime}</td>
+              <td style="padding:8px 10px;border-bottom:1px solid #eee;font-family:monospace">${d.kod}</td>
+              <td style="padding:8px 10px;border-bottom:1px solid #eee">${d.odabraneOpcije.join(', ')}</td>
+              <td style="padding:8px 10px;border-bottom:1px solid #eee;color:#666">${new Date(d.datum).toLocaleString('bs-BA')}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+
+  win.document.write(`<!DOCTYPE html>
+<html lang="bs"><head><meta charset="UTF-8">
+<title>Rezultati glasanja — ${anketa.pitanje.slice(0,50)}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; color: #1a1a1a; padding: 36px; max-width: 760px; margin: 0 auto; }
+  .header { border-bottom: 3px solid #1a3a6b; padding-bottom: 14px; margin-bottom: 24px; }
+  .header h1 { font-size: 19px; color: #1a3a6b; margin: 0 0 4px; }
+  .header .sub { font-size: 12px; color: #666; }
+  .meta { display:flex; gap:24px; flex-wrap:wrap; margin-bottom:24px; }
+  .meta-item .label { font-size:10px; color:#888; text-transform:uppercase; letter-spacing:.05em; margin-bottom:3px; }
+  .meta-item .val { font-size:14px; font-weight:500; }
+  .section { margin-bottom:28px; }
+  .section h2 { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#555; margin:0 0 14px; padding-bottom:8px; border-bottom:1px solid #eee; }
+  .footer { margin-top:36px; padding-top:14px; border-top:1px solid #ddd; font-size:10px; color:#999; text-align:center; }
+  @media print { body { padding: 16px; } }
+</style></head>
+<body>
+  <div class="header">
+    <h1>Rezultati glasanja</h1>
+    <div class="sub">e-ZEV · ${anketa.zevNaziv}</div>
+  </div>
+  <div class="meta">
+    <div class="meta-item"><div class="label">Pitanje</div><div class="val">${anketa.pitanje}</div></div>
+    <div class="meta-item"><div class="label">Tip</div><div class="val">${anketa.tip === 'jedan' ? 'Jedan odabir' : 'Više odabira'}</div></div>
+    <div class="meta-item"><div class="label">Ukupno glasova</div><div class="val">${ukupno}</div></div>
+    <div class="meta-item"><div class="label">Rok glasanja</div><div class="val">${new Date(anketa.krajDatum).toLocaleDateString('bs-BA')}</div></div>
+    <div class="meta-item"><div class="label">Status</div><div class="val">${anketa.zatvorena ? 'Zatvoreno' : 'Aktivno'}</div></div>
+  </div>
+  <div class="section">
+    <h2>Rezultati po opcijama</h2>
+    ${opcijeHTML}
+  </div>
+  <div class="section">
+    <h2>Ko je kako glasao (${detalji.length})</h2>
+    ${detaljiHTML}
+  </div>
+  <div class="footer">Generisano putem e-ZEV aplikacije · ${new Date().toLocaleString('bs-BA')}</div>
+  <scr` + `ipt>window.onload=function(){setTimeout(function(){window.print()},300);};<\/scr` + `ipt>
+</body></html>`);
+  win.document.close();
+  toast('PDF se generiše u novom prozoru.', 'success');
 }
 
 function zatvoriAnketu(id) {
   const a = DB.ankete.find(a => a.id === id);
   if (a) { a.zatvorena = true; a.aktivna = false; }
   toast('Anketa zatvorena.', 'success');
+  renderAdminGlasanje();
+  window.spremiUFirestore('ankete');
+}
+
+function obrisiAnketu(id) {
+  const a = DB.ankete.find(a => a.id === id);
+  if (!a) return;
+  if (!confirm(`Obrisati anketu "${a.pitanje}"? Ova akcija je nepovratna.`)) return;
+  DB.ankete = DB.ankete.filter(a => a.id !== id);
+  toast('Anketa obrisana.', 'success');
   renderAdminGlasanje();
   window.spremiUFirestore('ankete');
 }
@@ -2640,14 +2961,27 @@ function renderAdminPrijave() {
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
           ${statusChip(p.status)}
           <button class="btn btn-sm" onclick="openOdgovor('${p.id}')">
-            <i class="ti ti-message"></i> ${p.odgovor ? 'Izmijeni odgovor' : 'Odgovori'}
+            <i class="ti ti-message"></i> ${p.odgovor ? 'Izmijeni' : 'Odgovori'}
           </button>
           <button class="btn btn-sm" onclick="exportPrijavaPdf('${p.id}')">
-            <i class="ti ti-file-type-pdf"></i> Export PDF
+            <i class="ti ti-file-type-pdf"></i> PDF
+          </button>
+          <button class="btn btn-sm btn-danger" onclick="obrisiPrijavu('${p.id}')">
+            <i class="ti ti-trash"></i>
           </button>
         </div>
       </div>
     </div>`).join('');
+}
+
+function obrisiPrijavu(id) {
+  const p = DB.prijave.find(p => p.id === id);
+  if (!p) return;
+  if (!confirm(`Obrisati prijavu "${p.naslov}"? Ova akcija je nepovratna.`)) return;
+  DB.prijave = DB.prijave.filter(p => p.id !== id);
+  toast('Prijava obrisana.', 'success');
+  renderAdminPrijave();
+  window.spremiUFirestore('prijave');
 }
 
 function previewSlikaPrijave(input) {

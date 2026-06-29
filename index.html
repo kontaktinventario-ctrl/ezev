@@ -1343,6 +1343,106 @@ body.admin .admin-only-block { display: block; }
 <!-- Toast kontejner -->
 <div class="toast-container" id="toast-container"></div>
 
+<!-- ═══════════════════════════════════════════════════════
+     FIREBASE — inicijalizacija i pomoćne funkcije
+     ═══════════════════════════════════════════════════════ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getFirestore, doc, getDoc, setDoc, onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCTfgYSvCWjuU0sAWCbGBOfGOsKV5nBavE",
+  authDomain: "ezev-app.firebaseapp.com",
+  projectId: "ezev-app",
+  storageBucket: "ezev-app.firebasestorage.app",
+  messagingSenderId: "89324054978",
+  appId: "1:89324054978:web:6138f2a332db2551518e5b"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const dbFirestore = getFirestore(fbApp);
+
+// Sva aplikaciona "stanja" čuvamo kao po jedan dokument u kolekciji "ezev"
+// (npr. ezev/zevovi, ezev/vlasnici, ezev/ankete...) — svaki dokument ima
+// polje "podaci" koje je niz/objekat identičan onome što je app ranije
+// držala samo u memoriji (window.DB.x).
+const KOLEKCIJE = ['zevovi', 'vlasnici', 'ankete', 'prijave', 'finansijskiPodaci', 'savjetnik', 'partneri', 'korisnici', 'povezaniNalozi'];
+
+window.__firebaseReady = false;
+window.__firebaseSaving = {};
+
+// Učitaj sve podatke iz Firestore u window.DB pri pokretanju,
+// i pretplati se na promjene (real-time sync između korisnika)
+async function ucitajIFirebaseSync() {
+  for (const kol of KOLEKCIJE) {
+    const ref = doc(dbFirestore, 'ezev', kol);
+    try {
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        primijeniPodatkeIzFirestore(kol, snap.data().podaci);
+      } else {
+        // Prvi put — dokument ne postoji, inicijalizuj ga sa trenutnim demo podacima
+        await setDoc(ref, { podaci: dohvatiLokalnePodatke(kol) });
+      }
+    } catch (e) {
+      console.error('Greška pri učitavanju iz Firestore (' + kol + '):', e);
+    }
+
+    // Real-time osluškivanje promjena (npr. drugi admin doda vlasnika)
+    onSnapshot(ref, (snap) => {
+      if (snap.exists() && !window.__firebaseSaving[kol]) {
+        primijeniPodatkeIzFirestore(kol, snap.data().podaci);
+        if (window.__firebaseReady) osvjeziPrikazNakonSync(kol);
+      }
+    });
+  }
+  window.__firebaseReady = true;
+  if (window.onFirebaseReady) window.onFirebaseReady();
+}
+
+function dohvatiLokalnePodatke(kol) {
+  if (kol === 'korisnici') return window.KORISNICI || [];
+  if (kol === 'povezaniNalozi') return window.POVEZANI_NALOZI || {};
+  return (window.DB && window.DB[kol]) || [];
+}
+
+function primijeniPodatkeIzFirestore(kol, podaci) {
+  if (kol === 'korisnici') {
+    window.KORISNICI.length = 0;
+    (podaci || []).forEach(k => window.KORISNICI.push(k));
+    return;
+  }
+  if (kol === 'povezaniNalozi') {
+    Object.keys(window.POVEZANI_NALOZI).forEach(k => delete window.POVEZANI_NALOZI[k]);
+    Object.assign(window.POVEZANI_NALOZI, podaci || {});
+    return;
+  }
+  window.DB[kol] = podaci || [];
+}
+
+function osvjeziPrikazNakonSync(kol) {
+  // Ponovo iscrtaj trenutno aktivnu stranicu ako se njeni podaci promijene
+  const aktivna = document.querySelector('.page.active')?.id?.replace('page-', '');
+  if (aktivna && window.renderPage) window.renderPage(aktivna);
+}
+
+// Sačuvaj jednu kolekciju nazad u Firestore (poziva se nakon svake izmjene)
+window.spremiUFirestore = async function(kol) {
+  const ref = doc(dbFirestore, 'ezev', kol);
+  window.__firebaseSaving[kol] = true;
+  try {
+    await setDoc(ref, { podaci: dohvatiLokalnePodatke(kol) });
+  } catch (e) {
+    console.error('Greška pri snimanju u Firestore (' + kol + '):', e);
+    if (window.toast) window.toast('Greška pri sinhronizaciji sa bazom. Provjerite internet konekciju.', 'error');
+  }
+  setTimeout(() => { window.__firebaseSaving[kol] = false; }, 300);
+};
+
+window.__pokreniFirebaseSync = ucitajIFirebaseSync;
+</script>
 
 <script>
 // ═══════════════════════════════════════════════════════
@@ -1357,6 +1457,7 @@ const KORISNICI = [
   { kod: '10044', password: 'Vlasnik789!', ime: 'Petar Petrović' },
   { kod: '10045', password: 'Vlasnik999!', ime: 'Dušan Simović' },
 ];
+window.KORISNICI = KORISNICI;
 
 const ZEVOVI = {
   fer: 'ZEV Ferhadija 12',
@@ -1366,6 +1467,7 @@ const ZEVOVI = {
 
 // Grupe povezanih korisničkih kodova: kod -> [svi povezani kodovi uklj. sebe]
 const POVEZANI_NALOZI = {};
+window.POVEZANI_NALOZI = POVEZANI_NALOZI;
 
 let DB = {
   ankete: [
@@ -1515,6 +1617,8 @@ DB.partneri = [
   { id: 'pt2', naziv: 'Eko čišćenje', opis: '15% popusta na prvu uslugu generalnog čišćenja stana ili zgrade.', telefon: '+387 61 333 444', email: 'info@ekociscenje.ba', kategorija: 'ti-leaf' },
 ];
 
+window.DB = DB;
+
 let aktivniZevId = null;
 
 function popuniZevSelecte() {
@@ -1637,6 +1741,7 @@ function snimiZev() {
   closeModal('modal-novi-zev');
   ocistiZevFormu();
   renderAdminZevovi();
+  window.spremiUFirestore('zevovi');
 }
 
 function azurirajZevSelecte(id, naziv) {
@@ -1671,6 +1776,8 @@ function obrisiZev(id) {
   DB.vlasnici = DB.vlasnici.filter(v => v.zevId !== id);
   toast('ZEV obrisan.', 'success');
   renderAdminZevovi();
+  window.spremiUFirestore('zevovi');
+  window.spremiUFirestore('vlasnici');
 }
 
 function ocistiZevFormu() {
@@ -1858,6 +1965,9 @@ function snimiVlasnika() {
     toast('Vlasnik ažuriran!', 'success');
     closeModal('modal-novi-vlasnik');
     renderVlasnici();
+    window.spremiUFirestore('vlasnici');
+    window.spremiUFirestore('korisnici');
+    window.spremiUFirestore('povezaniNalozi');
   } else {
     const noviId = 'v_' + Date.now();
     DB.vlasnici.push({ id: noviId, ...podaci });
@@ -1871,6 +1981,8 @@ function snimiVlasnika() {
     document.getElementById('pp-prostor').textContent = oznaka+' ('+sifra+') · '+ZEVOVI[zevId];
     openModal('modal-pristupni-podaci');
     renderVlasnici();
+    window.spremiUFirestore('vlasnici');
+    window.spremiUFirestore('korisnici');
   }
 }
 
@@ -1906,6 +2018,8 @@ function obrisiVlasnika(id) {
   if (ki >= 0) KORISNICI.splice(ki, 1);
   toast('Vlasnik obrisan.', 'success');
   renderVlasnici();
+  window.spremiUFirestore('vlasnici');
+  window.spremiUFirestore('korisnici');
 }
 
 function prikaziPristupne(id) {
@@ -2005,6 +2119,7 @@ function poveziNepokretnost() {
   document.getElementById('poveci-lozinka').value = '';
   renderPoveciLista();
   toast('Nepokretnost uspješno povezana!', 'success');
+  window.spremiUFirestore('povezaniNalozi');
 
   const aktivnaStranica = document.querySelector('.page.active')?.id?.replace('page-','');
   if (aktivnaStranica) renderPage(aktivnaStranica);
@@ -2032,6 +2147,7 @@ function ukloniPovezanost(kod) {
 
   renderPoveciLista();
   toast('Povezanost uklonjena.', 'success');
+  window.spremiUFirestore('povezaniNalozi');
 
   const aktivnaStranica = document.querySelector('.page.active')?.id?.replace('page-','');
   if (aktivnaStranica) renderPage(aktivnaStranica);
@@ -2302,6 +2418,7 @@ function glasaj(anketaId) {
 
   toast('Vaš glas je zabilježen!', 'success');
   renderGlasanjeVlasnik();
+  window.spremiUFirestore('ankete');
 }
 
 function renderAdminGlasanje() {
@@ -2418,6 +2535,7 @@ function zatvoriAnketu(id) {
   if (a) { a.zatvorena = true; a.aktivna = false; }
   toast('Anketa zatvorena.', 'success');
   renderAdminGlasanje();
+  window.spremiUFirestore('ankete');
 }
 
 function kreirajAnketu() {
@@ -2453,6 +2571,7 @@ function kreirajAnketu() {
   document.getElementById('anketa-opcije').value = '';
   toast('Anketa uspješno kreirana!', 'success');
   renderAdminGlasanje();
+  window.spremiUFirestore('ankete');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2574,6 +2693,7 @@ function kreirajPrijavu() {
     document.getElementById('prijava-slika-preview').style.display = 'none';
     toast('Prijava uspješno poslana!', 'success');
     renderPrijaveVlasnik();
+    window.spremiUFirestore('prijave');
   };
 
   if (file) {
@@ -2617,6 +2737,7 @@ function posaljiOdgovor() {
   closeModal('modal-odgovor');
   toast('Odgovor poslan!', 'success');
   renderAdminPrijave();
+  window.spremiUFirestore('prijave');
 }
 
 function statusNaziv(status) {
@@ -2832,6 +2953,7 @@ function snimiUnosIzvjestaja() {
 
   closeModal('modal-unos-izvjestaja');
   renderAdminIzvLista();
+  window.spremiUFirestore('finansijskiPodaci');
 }
 
 function obrisiUnosIzvjestaja(id) {
@@ -2839,6 +2961,7 @@ function obrisiUnosIzvjestaja(id) {
   DB.finansijskiPodaci = DB.finansijskiPodaci.filter(f => f.id !== id);
   toast('Unos obrisan.', 'success');
   renderAdminIzvLista();
+  window.spremiUFirestore('finansijskiPodaci');
 }
 
 function updatePeriodField() {
@@ -3099,6 +3222,7 @@ function snimiUnosSavjetnik() {
   closeModal('modal-novi-unos-savjetnik');
   document.getElementById('admin-savj-zev').value = zevId;
   renderAdminSavjetnikLista();
+  window.spremiUFirestore('savjetnik');
 }
 
 function obrisiUnosSavjetnik(id) {
@@ -3106,6 +3230,7 @@ function obrisiUnosSavjetnik(id) {
   DB.savjetnik = DB.savjetnik.filter(s => s.id !== id);
   toast('Unos obrisan.', 'success');
   renderAdminSavjetnikLista();
+  window.spremiUFirestore('savjetnik');
 }
 
 // Enter za savjetnik chat
@@ -3213,6 +3338,7 @@ function snimiPartnera() {
 
   closeModal('modal-novi-partner');
   renderAdminKomsija();
+  window.spremiUFirestore('partneri');
 }
 
 function obrisiPartnera(id) {
@@ -3220,6 +3346,7 @@ function obrisiPartnera(id) {
   DB.partneri = DB.partneri.filter(p => p.id !== id);
   toast('Partner obrisan.', 'success');
   renderAdminKomsija();
+  window.spremiUFirestore('partneri');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3233,6 +3360,54 @@ function toast(msg, type = 'success') {
   el.innerHTML = `<i class="ti ${type==='success'?'ti-circle-check':'ti-alert-circle'}" style="color:var(--${type==='success'?'green':'red'})"></i> ${msg}`;
   cont.appendChild(el);
   setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300); }, 3000);
+}
+
+// ═══════════════════════════════════════════════════════
+// FIREBASE — pokretanje sinhronizacije
+// ═══════════════════════════════════════════════════════
+
+window.renderPage = renderPage;
+window.toast = toast;
+
+// Dok se prvi put učitavaju podaci sa Firebase-a, prikaži kratku poruku
+// preko login ekrana da korisnik zna da app nije "zaglavila"
+(function prikaziUcitavanje() {
+  const wrap = document.createElement('div');
+  wrap.id = 'fb-loading-overlay';
+  wrap.style.cssText = 'position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:14px';
+  wrap.innerHTML = `
+    <div style="width:40px;height:40px;border:3px solid var(--bg4);border-top-color:var(--accent);border-radius:50%;animation:fb-spin 0.8s linear infinite"></div>
+    <div style="color:var(--text2);font-size:13px">Povezivanje sa bazom podataka...</div>
+    <style>@keyframes fb-spin{to{transform:rotate(360deg)}}</style>`;
+  document.body.appendChild(wrap);
+})();
+
+window.onFirebaseReady = function() {
+  const overlay = document.getElementById('fb-loading-overlay');
+  if (overlay) overlay.remove();
+};
+
+// Sigurnosni fallback: ako se Firebase ne učita u razumnom roku
+// (npr. nema interneta, CDN nedostupan), ukloni overlay i nastavi
+// sa podacima koji su trenutno u memoriji, uz upozorenje korisniku.
+setTimeout(() => {
+  const overlay = document.getElementById('fb-loading-overlay');
+  if (overlay) {
+    overlay.remove();
+    if (window.toast) {
+      window.toast('Nije moguće povezati se sa bazom podataka. Provjerite internet konekciju i osvježite stranicu.', 'error');
+    }
+  }
+}, 8000);
+
+// Pokreni Firebase učitavanje i real-time sinhronizaciju
+if (window.__pokreniFirebaseSync) {
+  window.__pokreniFirebaseSync();
+} else {
+  // Firebase modul script se još nije izvršio — sačekaj kratko pa pokušaj ponovo
+  window.addEventListener('load', () => {
+    if (window.__pokreniFirebaseSync) window.__pokreniFirebaseSync();
+  });
 }
 </script>
 </body>

@@ -47,7 +47,7 @@ body {
 }
 
 /* ─── LOGIN ─────────────────────────────────────────── */
-#login-screen {
+#login-screen, #promjena-lozinke-screen {
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -57,7 +57,7 @@ body {
   overflow: hidden;
 }
 
-#login-screen::before {
+#login-screen::before, #promjena-lozinke-screen::before {
   content: '';
   position: absolute;
   width: 600px; height: 600px;
@@ -65,7 +65,7 @@ body {
   top: -200px; left: -100px;
   pointer-events: none;
 }
-#login-screen::after {
+#login-screen::after, #promjena-lozinke-screen::after {
   content: '';
   position: absolute;
   width: 400px; height: 400px;
@@ -191,6 +191,9 @@ body {
   margin-bottom: 16px;
   display: none;
 }
+
+.pl-rule-ok { color: var(--green) !important; }
+.pl-rule-ok i { color: var(--green); }
 
 /* ─── APP LAYOUT ─────────────────────────────────────── */
 #app-screen { display: none; flex-direction: column; min-height: 100vh; }
@@ -732,6 +735,42 @@ body.admin .admin-only-block { display: block; }
     <p style="text-align:center; font-size:11px; color:var(--text3); margin-top:20px;">
       Zaboravili ste lozinku? Kontaktirajte administratora.
     </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- PROMJENA LOZINKE (obavezna pri prvom loginu)       -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div id="promjena-lozinke-screen" style="display:none">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-mark"><i class="ti ti-lock"></i></div>
+      <div class="login-title">Promjena lozinke</div>
+      <div class="login-sub" id="pl-poruka">Ovo je vaša prva prijava. Iz sigurnosnih razloga morate postaviti novu lozinku.</div>
+    </div>
+
+    <div id="pl-error" class="login-error"></div>
+
+    <div class="form-group">
+      <label class="form-label">Nova lozinka</label>
+      <input class="form-input" id="pl-nova" type="password" placeholder="••••••••" autocomplete="new-password">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Potvrdite novu lozinku</label>
+      <input class="form-input" id="pl-potvrda" type="password" placeholder="••••••••" autocomplete="new-password">
+    </div>
+
+    <div style="background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; margin-bottom:16px">
+      <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--text3); margin-bottom:8px">Lozinka mora sadržavati:</div>
+      <div style="display:flex; flex-direction:column; gap:5px; font-size:12px">
+        <span id="pl-rule-len" style="color:var(--text3)"><i class="ti ti-circle"></i> Minimalno 7 karaktera</span>
+        <span id="pl-rule-upper" style="color:var(--text3)"><i class="ti ti-circle"></i> Barem jedno veliko slovo (A-Z)</span>
+        <span id="pl-rule-lower" style="color:var(--text3)"><i class="ti ti-circle"></i> Barem jedno malo slovo (a-z)</span>
+        <span id="pl-rule-digit" style="color:var(--text3)"><i class="ti ti-circle"></i> Barem jedan broj (0-9)</span>
+      </div>
+    </div>
+
+    <button class="btn-login" onclick="potvrdiNovuLozinku()">Postavi lozinku i nastavi</button>
   </div>
 </div>
 
@@ -1333,7 +1372,7 @@ body.admin .admin-only-block { display: block; }
           </button>
         </div>
       </div>
-      <div class="field">
+      <div class="field" id="v-lozinka-wrap">
         <label>Lozinka</label>
         <div style="display:flex;gap:8px">
           <input type="text" id="v-lozinka" placeholder="Min. 8 karaktera" style="flex:1">
@@ -1343,9 +1382,23 @@ body.admin .admin-only-block { display: block; }
         </div>
       </div>
     </div>
-    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:12px;color:var(--text2);margin-top:4px">
+
+    <!-- Prikazano samo pri uređivanju postojećeg vlasnika -->
+    <div id="v-reset-lozinke-wrap" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-top:4px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div style="font-size:12px;color:var(--text2)">
+          <i class="ti ti-shield-lock" style="color:var(--accent)"></i>
+          Lozinka je sigurnosno zaštićena i ne prikazuje se. Da je promijenite, resetujte je — vlasnik će morati postaviti novu pri sljedećoj prijavi.
+        </div>
+        <button class="btn btn-sm" type="button" onclick="resetujLozinkuVlasnika()" style="white-space:nowrap">
+          <i class="ti ti-refresh"></i> Resetuj lozinku
+        </button>
+      </div>
+    </div>
+
+    <div id="v-lozinka-info" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:12px;color:var(--text2);margin-top:4px">
       <i class="ti ti-info-circle" style="color:var(--accent)"></i>
-      Korisnički kod i lozinka se daju etažnom vlasniku za prijavu u sistem.
+      Korisnički kod i lozinka se daju etažnom vlasniku za prijavu u sistem. Pri prvoj prijavi vlasnik mora postaviti novu, ličnu lozinku.
     </div>
     <div style="margin-top:10px">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text2)">
@@ -1566,7 +1619,7 @@ const dbFirestore = getFirestore(fbApp);
 // (npr. ezev/zevovi, ezev/vlasnici, ezev/ankete...) — svaki dokument ima
 // polje "podaci" koje je niz/objekat identičan onome što je app ranije
 // držala samo u memoriji (window.DB.x).
-const KOLEKCIJE = ['zevovi', 'vlasnici', 'ankete', 'prijave', 'finansijskiPodaci', 'savjetnik', 'partneri', 'korisnici', 'povezaniNalozi'];
+const KOLEKCIJE = ['zevovi', 'vlasnici', 'ankete', 'prijave', 'finansijskiPodaci', 'savjetnik', 'partneri', 'korisnici', 'povezaniNalozi', 'adminNalog'];
 
 window.__firebaseReady = false;
 window.__firebaseSaving = {};
@@ -1603,6 +1656,7 @@ async function ucitajIFirebaseSync() {
 function dohvatiLokalnePodatke(kol) {
   if (kol === 'korisnici') return window.KORISNICI || [];
   if (kol === 'povezaniNalozi') return window.POVEZANI_NALOZI || {};
+  if (kol === 'adminNalog') return window.ADMIN || {};
   return (window.DB && window.DB[kol]) || [];
 }
 
@@ -1615,6 +1669,13 @@ function primijeniPodatkeIzFirestore(kol, podaci) {
   if (kol === 'povezaniNalozi') {
     Object.keys(window.POVEZANI_NALOZI).forEach(k => delete window.POVEZANI_NALOZI[k]);
     Object.assign(window.POVEZANI_NALOZI, podaci || {});
+    return;
+  }
+  if (kol === 'adminNalog') {
+    if (podaci && Object.keys(podaci).length > 0) {
+      Object.keys(window.ADMIN).forEach(k => delete window.ADMIN[k]);
+      Object.assign(window.ADMIN, podaci);
+    }
     return;
   }
   window.DB[kol] = podaci || [];
@@ -1647,13 +1708,17 @@ window.__pokreniFirebaseSync = ucitajIFirebaseSync;
 // PODACI (simulacija baze podataka)
 // ═══════════════════════════════════════════════════════
 
-const ADMIN = { username: 'clickpay', password: 'BananaCPS0211!' };
+// NAPOMENA O SIGURNOSTI: lozinka ispod se koristi SAMO za prvu prijavu.
+// Aplikacija će odmah tražiti promjenu lozinke, nakon čega se ova
+// vrijednost trajno briše i zamjenjuje sigurnim hash-om u bazi.
+const ADMIN = { username: 'clickpay', password: 'BananaCPS0211!', mustChangePassword: true };
+window.ADMIN = ADMIN;
 
 const KORISNICI = [
-  { kod: '10042', password: 'Vlasnik123!', ime: 'Dušan Simović' },
-  { kod: '10043', password: 'Vlasnik456!', ime: 'Ana Jovanović' },
-  { kod: '10044', password: 'Vlasnik789!', ime: 'Petar Petrović' },
-  { kod: '10045', password: 'Vlasnik999!', ime: 'Dušan Simović' },
+  { kod: '10042', password: 'Vlasnik123!', ime: 'Dušan Simović', mustChangePassword: true },
+  { kod: '10043', password: 'Vlasnik456!', ime: 'Ana Jovanović', mustChangePassword: true },
+  { kod: '10044', password: 'Vlasnik789!', ime: 'Petar Petrović', mustChangePassword: true },
+  { kod: '10045', password: 'Vlasnik999!', ime: 'Dušan Simović', mustChangePassword: true },
 ];
 window.KORISNICI = KORISNICI;
 
@@ -2043,6 +2108,10 @@ function renderVlasnici() {
 
   tbody.innerHTML = vlasnici.map(v => {
     const mjesecnaObaveza = (Number(v.povrsina) * Number(DB.zevovi.find(z=>z.id===v.zevId)?.akontacioniBod || 0) * (v.tip==='POSLOVNI'?2:1)).toFixed(2);
+    const k = KORISNICI.find(k => k.kod === v.kod);
+    const lozinkaStatus = k?.mustChangePassword
+      ? '<span class="badge badge-yellow" style="font-size:10px"><i class="ti ti-clock"></i> Čeka promjenu</span>'
+      : '<span class="badge badge-green" style="font-size:10px"><i class="ti ti-shield-check"></i> Postavljena</span>';
     return `<tr>
       <td><span style="font-family:var(--font-mono);font-size:12px;color:var(--accent)">${v.sifra}</span></td>
       <td style="font-weight:500">${v.oznaka}</td>
@@ -2054,7 +2123,7 @@ function renderVlasnici() {
       </td>
       <td style="color:var(--text2)">${v.imeKorisnika ? v.imeKorisnika+' '+v.prezimeKorisnika : '<span style="color:var(--text3)">—</span>'}</td>
       <td><span style="font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--text)">${v.kod}</span></td>
-      <td><span style="font-family:var(--font-mono);font-size:12px;color:var(--text2)">${v.lozinka}</span></td>
+      <td>${lozinkaStatus}</td>
       <td>
         ${v.email
           ? `<span style="font-size:11px;color:var(--text2)">${v.email}</span>
@@ -2064,7 +2133,6 @@ function renderVlasnici() {
       <td>
         <div style="display:flex;gap:5px">
           <button class="btn btn-sm" onclick="urediVlasnika('${v.id}')" title="Uredi"><i class="ti ti-edit"></i></button>
-          <button class="btn btn-sm" onclick="prikaziPristupne('${v.id}')" title="Pristupni podaci"><i class="ti ti-key"></i></button>
           <button class="btn btn-sm btn-danger" onclick="obrisiVlasnika('${v.id}')" title="Obriši"><i class="ti ti-trash"></i></button>
         </div>
       </td>
@@ -2083,6 +2151,8 @@ function openDodajVlasnika() {
   document.getElementById('vlasnik-modal-naslov').textContent = 'Dodaj etažnog vlasnika';
   document.getElementById('vlasnik-btn-label').textContent = 'Dodaj vlasnika';
   document.getElementById('v-zev-id').value = aktivniZevId;
+  document.getElementById('v-lozinka-wrap').style.display = 'block';
+  document.getElementById('v-reset-lozinke-wrap').style.display = 'none';
   generisiKod();
   generisiLozinku();
   openModal('modal-novi-vlasnik');
@@ -2134,7 +2204,7 @@ function snimiVlasnika() {
   if (!povrsina || povrsina <= 0) { toast('Unesite ispravnu površinu.', 'error'); return; }
   if (!imeVlasnika || !prezimeVlasnika) { toast('Unesite ime i prezime vlasnika.', 'error'); return; }
   if (!kod || kod.length !== 5 || isNaN(kod)) { toast('Korisnički kod mora biti tačno 5 cifara.', 'error'); return; }
-  if (!lozinka || lozinka.length < 6) { toast('Lozinka mora imati minimum 6 karaktera.', 'error'); return; }
+  if (!editId && (!lozinka || lozinka.length < 6)) { toast('Lozinka mora imati minimum 6 karaktera.', 'error'); return; }
 
   // Provjeri jedinstvenost šifre u ZEV-u
   const dupSifra = DB.vlasnici.find(v => v.zevId === zevId && v.sifra === sifra && v.id !== editId);
@@ -2142,18 +2212,21 @@ function snimiVlasnika() {
 
   // Provjeri jedinstvenost koda
   const dupKod = DB.vlasnici.find(v => v.kod === kod && v.id !== editId);
-  const dupKodKor = KORISNICI.find(k => k.kod === kod);
+  const dupKodKor = KORISNICI.find(k => k.kod === kod && k.kod !== (editId ? DB.vlasnici.find(v=>v.id===editId)?.kod : null));
   if (dupKod || dupKodKor) { toast('Taj korisnički kod je već zauzet. Generiši novi.', 'error'); return; }
 
-  const podaci = { sifra, oznaka, tip, povrsina, imeVlasnika, prezimeVlasnika, imeKorisnika, prezimeKorisnika, telefon, email, emailDostava, kod, lozinka, zevId };
+  // Napomena: lozinka se NE čuva unutar DB.vlasnici (samo u KORISNICI, i to hashovana
+  // čim je vlasnik prvi put promijeni) — izbjegavamo duplo čuvanje osjetljivog podatka.
+  const podaci = { sifra, oznaka, tip, povrsina, imeVlasnika, prezimeVlasnika, imeKorisnika, prezimeKorisnika, telefon, email, emailDostava, kod, zevId };
 
   if (editId) {
     const v = DB.vlasnici.find(v => v.id === editId);
     const stariKod = v?.kod;
     if (v) Object.assign(v, podaci);
-    // Ažuriraj i u KORISNICI
+    // Ažuriraj osnovne podatke u KORISNICI (ime, kod) — lozinku NE diramo ovdje,
+    // za to postoji zasebno dugme "Resetuj lozinku"
     const ki = KORISNICI.findIndex(k => k.kod === stariKod);
-    if (ki >= 0) { KORISNICI[ki].kod = kod; KORISNICI[ki].password = lozinka; KORISNICI[ki].ime = imeVlasnika+' '+prezimeVlasnika; }
+    if (ki >= 0) { KORISNICI[ki].kod = kod; KORISNICI[ki].ime = imeVlasnika+' '+prezimeVlasnika; }
     // Ako se kod promijenio, ažuriraj i POVEZANI_NALOZI grupu
     if (stariKod && stariKod !== kod && POVEZANI_NALOZI[stariKod]) {
       const grupa = POVEZANI_NALOZI[stariKod].map(k => k === stariKod ? kod : k);
@@ -2169,8 +2242,8 @@ function snimiVlasnika() {
   } else {
     const noviId = 'v_' + Date.now();
     DB.vlasnici.push({ id: noviId, ...podaci });
-    // Dodaj u KORISNICI listu za login
-    KORISNICI.push({ kod, password: lozinka, ime: imeVlasnika+' '+prezimeVlasnika });
+    // Dodaj u KORISNICI listu za login — inicijalna lozinka, mora se promijeniti pri prvoj prijavi
+    KORISNICI.push({ kod, password: lozinka, ime: imeVlasnika+' '+prezimeVlasnika, mustChangePassword: true });
     closeModal('modal-novi-vlasnik');
     // Prikaži pristupne podatke
     document.getElementById('pp-ime').textContent = imeVlasnika+' '+prezimeVlasnika;
@@ -2199,12 +2272,49 @@ function urediVlasnika(id) {
   document.getElementById('v-email').value = v.email || '';
   document.getElementById('v-email-dostava').checked = v.emailDostava;
   document.getElementById('v-kod').value = v.kod;
-  document.getElementById('v-lozinka').value = v.lozinka;
+  document.getElementById('v-lozinka').value = '';
+  document.getElementById('v-lozinka-wrap').style.display = 'none';
+  document.getElementById('v-reset-lozinke-wrap').style.display = 'block';
   document.getElementById('v-edit-id').value = id;
   document.getElementById('v-zev-id').value = v.zevId;
   document.getElementById('vlasnik-modal-naslov').textContent = 'Uredi etažnog vlasnika';
   document.getElementById('vlasnik-btn-label').textContent = 'Snimi izmjene';
   openModal('modal-novi-vlasnik');
+}
+
+// Resetuje lozinku postojećeg vlasnika — generiše novu privremenu lozinku
+// koju vlasnik MORA promijeniti pri sljedećoj prijavi (mustChangePassword = true)
+function resetujLozinkuVlasnika() {
+  const id = document.getElementById('v-edit-id').value;
+  const v = DB.vlasnici.find(v => v.id === id);
+  if (!v) return;
+  if (!confirm(`Resetovati lozinku za ${v.imeVlasnika} ${v.prezimeVlasnika}? Vlasnik će morati postaviti novu lozinku pri sljedećoj prijavi.`)) return;
+
+  const veliki = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const mali = 'abcdefghijkmnpqrstuvwxyz';
+  const brojevi = '23456789';
+  const sve = veliki + mali + brojevi;
+  let novaLozinka = veliki[Math.floor(Math.random()*veliki.length)]
+    + mali[Math.floor(Math.random()*mali.length)]
+    + brojevi[Math.floor(Math.random()*brojevi.length)];
+  for (let i = 0; i < 5; i++) novaLozinka += sve[Math.floor(Math.random()*sve.length)];
+  novaLozinka = novaLozinka.split('').sort(() => Math.random()-0.5).join('');
+
+  const k = KORISNICI.find(k => k.kod === v.kod);
+  if (k) {
+    k.password = novaLozinka;
+    delete k.passwordHash;
+    k.mustChangePassword = true;
+  }
+  window.spremiUFirestore('korisnici');
+
+  closeModal('modal-novi-vlasnik');
+  document.getElementById('pp-ime').textContent = v.imeVlasnika+' '+v.prezimeVlasnika;
+  document.getElementById('pp-kod').textContent = v.kod;
+  document.getElementById('pp-lozinka').textContent = novaLozinka;
+  document.getElementById('pp-prostor').textContent = v.oznaka+' ('+v.sifra+') · '+ZEVOVI[v.zevId];
+  openModal('modal-pristupni-podaci');
+  toast('Nova lozinka generisana. Vlasnik je mora promijeniti pri sljedećoj prijavi.', 'success');
 }
 
 function obrisiVlasnika(id) {
@@ -2218,16 +2328,6 @@ function obrisiVlasnika(id) {
   renderVlasnici();
   window.spremiUFirestore('vlasnici');
   window.spremiUFirestore('korisnici');
-}
-
-function prikaziPristupne(id) {
-  const v = DB.vlasnici.find(v => v.id === id);
-  if (!v) return;
-  document.getElementById('pp-ime').textContent = v.imeVlasnika+' '+v.prezimeVlasnika;
-  document.getElementById('pp-kod').textContent = v.kod;
-  document.getElementById('pp-lozinka').textContent = v.lozinka;
-  document.getElementById('pp-prostor').textContent = v.oznaka+' ('+v.sifra+') · '+ZEVOVI[v.zevId];
-  openModal('modal-pristupni-podaci');
 }
 
 function kopirajPodatke() {
@@ -2364,25 +2464,152 @@ function showError(msg) {
   el.style.display = 'block';
 }
 
-function loginAdmin() {
-  const user = document.getElementById('admin-user').value.trim();
-  const pass = document.getElementById('admin-pass').value;
-  if (user === ADMIN.username && pass === ADMIN.password) {
-    doLogin({ tip: 'admin', ime: 'ClickPay Admin', kod: 'admin', zev: null });
-  } else {
-    showError('Pogrešno korisničko ime ili lozinka.');
-  }
+// ═══════════════════════════════════════════════════════
+// SIGURNOST LOZINKI — hashovanje i validacija
+// ═══════════════════════════════════════════════════════
+
+// SHA-256 hash lozinke (Web Crypto API, ugrađeno u sve moderne browsere).
+// Lozinke se OD SADA čuvaju isključivo kao hash, nikad kao čist tekst.
+async function hashLozinka(plainText) {
+  const enc = new TextEncoder().encode(plainText);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function loginVlasnik() {
+// Provjeri da li lozinka ispunjava sigurnosna pravila:
+// min. 7 karaktera, barem 1 veliko slovo, 1 malo slovo, 1 broj
+function provjeriPravilaLozinke(lozinka) {
+  return {
+    duzina: lozinka.length >= 7,
+    veliko: /[A-ZČĆŽŠĐ]/.test(lozinka),
+    malo: /[a-zčćžšđ]/.test(lozinka),
+    broj: /[0-9]/.test(lozinka),
+  };
+}
+
+function lozinkaIspravna(lozinka) {
+  const p = provjeriPravilaLozinke(lozinka);
+  return p.duzina && p.veliko && p.malo && p.broj;
+}
+
+// Korisnik (admin ili vlasnik) za kojeg je trenutno u toku obavezna promjena lozinke
+let korisnikZaPromjenuLozinke = null;
+
+function azurirajPrikazPravilaLozinke() {
+  const val = document.getElementById('pl-nova').value;
+  const p = provjeriPravilaLozinke(val);
+  const mapiranje = { duzina: 'pl-rule-len', veliko: 'pl-rule-upper', malo: 'pl-rule-lower', broj: 'pl-rule-digit' };
+  Object.keys(mapiranje).forEach(key => {
+    const el = document.getElementById(mapiranje[key]);
+    if (!el) return;
+    el.classList.toggle('pl-rule-ok', p[key]);
+    el.querySelector('i').className = p[key] ? 'ti ti-circle-check' : 'ti ti-circle';
+  });
+}
+
+function otvoriPromjenuLozinke(korisnik, poruka) {
+  korisnikZaPromjenuLozinke = korisnik;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('promjena-lozinke-screen').style.display = 'flex';
+  document.getElementById('pl-poruka').textContent = poruka || 'Ovo je vaša prva prijava. Iz sigurnosnih razloga morate postaviti novu lozinku.';
+  document.getElementById('pl-nova').value = '';
+  document.getElementById('pl-potvrda').value = '';
+  document.getElementById('pl-error').style.display = 'none';
+  azurirajPrikazPravilaLozinke();
+}
+
+async function potvrdiNovuLozinku() {
+  const nova = document.getElementById('pl-nova').value;
+  const potvrda = document.getElementById('pl-potvrda').value;
+  const errEl = document.getElementById('pl-error');
+  errEl.style.display = 'none';
+
+  if (!lozinkaIspravna(nova)) {
+    errEl.textContent = 'Lozinka ne ispunjava sve navedene uslove.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (nova !== potvrda) {
+    errEl.textContent = 'Lozinke se ne poklapaju.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const hash = await hashLozinka(nova);
+
+  if (korisnikZaPromjenuLozinke.tip === 'admin') {
+    ADMIN.passwordHash = hash;
+    ADMIN.mustChangePassword = false;
+    delete ADMIN.password; // ukloni stari plain-text odmah
+    window.spremiUFirestore('adminNalog');
+  } else {
+    const k = KORISNICI.find(k => k.kod === korisnikZaPromjenuLozinke.kod);
+    if (k) {
+      k.passwordHash = hash;
+      k.mustChangePassword = false;
+      delete k.password;
+    }
+    window.spremiUFirestore('korisnici');
+  }
+
+  toast('Lozinka uspješno promijenjena!', 'success');
+  document.getElementById('promjena-lozinke-screen').style.display = 'none';
+  doLogin(korisnikZaPromjenuLozinke);
+  korisnikZaPromjenuLozinke = null;
+}
+
+document.getElementById('pl-nova')?.addEventListener('input', azurirajPrikazPravilaLozinke);
+
+async function loginAdmin() {
+  const user = document.getElementById('admin-user').value.trim();
+  const pass = document.getElementById('admin-pass').value;
+
+  let ispravno = false;
+  if (ADMIN.passwordHash) {
+    // Nova metoda — admin je već postavio hashovanu lozinku
+    const hash = await hashLozinka(pass);
+    ispravno = (user === ADMIN.username && hash === ADMIN.passwordHash);
+  } else if (ADMIN.password) {
+    // Stara metoda — plain-text (tranzicijski, dok admin ne promijeni lozinku)
+    ispravno = (user === ADMIN.username && pass === ADMIN.password);
+  }
+
+  if (!ispravno) {
+    showError('Pogrešno korisničko ime ili lozinka.');
+    return;
+  }
+
+  const adminUser = { tip: 'admin', ime: 'ClickPay Admin', kod: 'admin', zev: null };
+  if (ADMIN.mustChangePassword) {
+    otvoriPromjenuLozinke(adminUser, 'Molimo postavite novu, sigurnu lozinku prije nastavka rada.');
+    return;
+  }
+  doLogin(adminUser);
+}
+
+async function loginVlasnik() {
   const kod = document.getElementById('vlasnik-kod').value.trim();
   const pass = document.getElementById('vlasnik-pass').value;
-  const k = KORISNICI.find(k => k.kod === kod && k.password === pass);
-  if (k) {
-    doLogin({ tip: 'vlasnik', ime: k.ime, kod: k.kod });
-  } else {
-    showError('Pogrešan korisnički kod ili lozinka.');
+  const k = KORISNICI.find(k => k.kod === kod);
+
+  if (!k) { showError('Pogrešan korisnički kod ili lozinka.'); return; }
+
+  let ispravno = false;
+  if (k.passwordHash) {
+    const hash = await hashLozinka(pass);
+    ispravno = (hash === k.passwordHash);
+  } else if (k.password) {
+    ispravno = (pass === k.password);
   }
+
+  if (!ispravno) { showError('Pogrešan korisnički kod ili lozinka.'); return; }
+
+  const vlasnikUser = { tip: 'vlasnik', ime: k.ime, kod: k.kod };
+  if (k.mustChangePassword) {
+    otvoriPromjenuLozinke(vlasnikUser, 'Ovo je vaša prva prijava (ili vam je admin resetovao lozinku). Iz sigurnosnih razloga morate postaviti novu lozinku.');
+    return;
+  }
+  doLogin(vlasnikUser);
 }
 
 // Vrati listu svih kodova povezanih sa datim kodom (uklj. sebe)

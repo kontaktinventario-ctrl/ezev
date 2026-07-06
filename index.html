@@ -1418,6 +1418,33 @@ body.admin .admin-only-block { display: block; }
   </div>
 </div>
 
+<!-- Modal: Postavljanje inicijalne lozinke od strane admina -->
+<div class="modal-overlay" id="modal-reset-lozinke">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-title">
+      <i class="ti ti-key" style="color:var(--accent)"></i> Postavi inicijalnu lozinku
+    </div>
+    <div id="reset-vlasnik-info" style="padding:12px 14px;background:var(--bg3);border-radius:var(--radius);font-size:13px;color:var(--text2);margin-bottom:16px"></div>
+
+    <div class="field">
+      <label>Inicijalna lozinka</label>
+      <input type="text" id="reset-nova-lozinka" placeholder="Unesite inicijalnu lozinku" autocomplete="off">
+    </div>
+    <div id="reset-error" style="display:none;background:var(--red-bg);border:1px solid rgba(240,90,90,0.25);border-radius:var(--radius);padding:10px 14px;font-size:13px;color:var(--red);margin-bottom:4px"></div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:12px;color:var(--text2);margin-top:4px">
+      <i class="ti ti-info-circle" style="color:var(--accent)"></i>
+      Vlasnik će morati promijeniti ovu lozinku pri sljedećoj prijavi. Predajte mu je lično ili telefonom.
+    </div>
+    <input type="hidden" id="reset-vlasnik-id">
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-reset-lozinke')">Odustani</button>
+      <button class="btn btn-primary" onclick="potvrdiResetLozinke()">
+        <i class="ti ti-check"></i> Postavi lozinku
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Prikaz pristupnih podataka -->
 <div class="modal-overlay" id="modal-pristupni-podaci">
   <div class="modal" style="max-width:420px;text-align:center">
@@ -2282,23 +2309,44 @@ function urediVlasnika(id) {
   openModal('modal-novi-vlasnik');
 }
 
-// Resetuje lozinku postojećeg vlasnika — generiše novu privremenu lozinku
-// koju vlasnik MORA promijeniti pri sljedećoj prijavi (mustChangePassword = true)
+// Otvori formu za postavljanje inicijalne lozinke od strane admina
 function resetujLozinkuVlasnika() {
   const id = document.getElementById('v-edit-id').value;
   const v = DB.vlasnici.find(v => v.id === id);
   if (!v) return;
-  if (!confirm(`Resetovati lozinku za ${v.imeVlasnika} ${v.prezimeVlasnika}? Vlasnik će morati postaviti novu lozinku pri sljedećoj prijavi.`)) return;
 
-  const veliki = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-  const mali = 'abcdefghijkmnpqrstuvwxyz';
-  const brojevi = '23456789';
-  const sve = veliki + mali + brojevi;
-  let novaLozinka = veliki[Math.floor(Math.random()*veliki.length)]
-    + mali[Math.floor(Math.random()*mali.length)]
-    + brojevi[Math.floor(Math.random()*brojevi.length)];
-  for (let i = 0; i < 5; i++) novaLozinka += sve[Math.floor(Math.random()*sve.length)];
-  novaLozinka = novaLozinka.split('').sort(() => Math.random()-0.5).join('');
+  document.getElementById('reset-vlasnik-info').innerHTML =
+    `<strong>${v.imeVlasnika} ${v.prezimeVlasnika}</strong><br>
+     <span style="font-family:var(--font-mono)">${v.kod}</span> · ${v.oznaka} · ${ZEVOVI[v.zevId] || v.zevId}`;
+  document.getElementById('reset-nova-lozinka').value = '';
+  document.getElementById('reset-error').style.display = 'none';
+  document.getElementById('reset-vlasnik-id').value = id;
+
+  // Zatvori modal uređivanja i otvori modal za reset
+  closeModal('modal-novi-vlasnik');
+  openModal('modal-reset-lozinke');
+}
+
+// Admin potvrdio novu inicijalnu lozinku — spremi i prikaži
+function potvrdiResetLozinke() {
+  const id = document.getElementById('reset-vlasnik-id').value;
+  const novaLozinka = document.getElementById('reset-nova-lozinka').value.trim();
+  const errEl = document.getElementById('reset-error');
+  errEl.style.display = 'none';
+
+  if (!novaLozinka) {
+    errEl.textContent = 'Unesite inicijalnu lozinku.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (novaLozinka.length < 4) {
+    errEl.textContent = 'Lozinka mora imati minimalno 4 karaktera.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const v = DB.vlasnici.find(v => v.id === id);
+  if (!v) return;
 
   const k = KORISNICI.find(k => k.kod === v.kod);
   if (k) {
@@ -2308,13 +2356,15 @@ function resetujLozinkuVlasnika() {
   }
   window.spremiUFirestore('korisnici');
 
-  closeModal('modal-novi-vlasnik');
-  document.getElementById('pp-ime').textContent = v.imeVlasnika+' '+v.prezimeVlasnika;
+  closeModal('modal-reset-lozinke');
+
+  // Prikaži modal sa pristupnim podacima za predaju vlasniku
+  document.getElementById('pp-ime').textContent = v.imeVlasnika + ' ' + v.prezimeVlasnika;
   document.getElementById('pp-kod').textContent = v.kod;
   document.getElementById('pp-lozinka').textContent = novaLozinka;
-  document.getElementById('pp-prostor').textContent = v.oznaka+' ('+v.sifra+') · '+ZEVOVI[v.zevId];
+  document.getElementById('pp-prostor').textContent = v.oznaka + ' (' + v.sifra + ') · ' + (ZEVOVI[v.zevId] || v.zevId);
   openModal('modal-pristupni-podaci');
-  toast('Nova lozinka generisana. Vlasnik je mora promijeniti pri sljedećoj prijavi.', 'success');
+  toast('Inicijalna lozinka postavljena. Vlasnik je mora promijeniti pri prijavi.', 'success');
 }
 
 function obrisiVlasnika(id) {
@@ -2559,6 +2609,9 @@ async function potvrdiNovuLozinku() {
 }
 
 document.getElementById('pl-nova')?.addEventListener('input', azurirajPrikazPravilaLozinke);
+document.getElementById('reset-nova-lozinka')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') potvrdiResetLozinke();
+});
 
 async function loginAdmin() {
   const user = document.getElementById('admin-user').value.trim();

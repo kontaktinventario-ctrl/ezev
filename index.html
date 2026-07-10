@@ -1140,9 +1140,7 @@ body.admin .admin-only-block { display: block; }
     <div class="field">
       <label>ZEV</label>
       <select id="anketa-zev">
-        <option value="fer">ZEV Ferhadija 12</option>
-        <option value="oba">ZEV Obala 5</option>
-        <option value="ske">ZEV Skenderija 22</option>
+        <!-- Opcije se popunjuju dinamički iz DB.zevovi -->
       </select>
     </div>
     <div class="field">
@@ -1709,6 +1707,10 @@ function primijeniPodatkeIzFirestore(kol, podaci) {
 }
 
 function osvjeziPrikazNakonSync(kol) {
+  // Kad se zevovi promijene (Firebase sync), ažuriraj ZEVOVI mapu i sve selecte
+  if (kol === 'zevovi' && window.popuniZevSelecte) {
+    window.popuniZevSelecte();
+  }
   // Ponovo iscrtaj trenutno aktivnu stranicu ako se njeni podaci promijene
   const aktivna = document.querySelector('.page.active')?.id?.replace('page-', '');
   if (aktivna && window.renderPage) window.renderPage(aktivna);
@@ -1911,31 +1913,59 @@ window.DB = DB;
 
 let aktivniZevId = null;
 
+// Centralna funkcija — popunjava SVE ZEV selecte i ZEVOVI mapu
+// Poziva se pri loginu, pri svakom Firebase sync-u i pri kreiranju/brisanju ZEV-a
 function popuniZevSelecte() {
-  const selekti = ['izv-zev', 'admin-izv-zev'];
-  selekti.forEach(selId => {
+  // 1. Ažuriraj ZEVOVI mapu iz DB.zevovi (da bude uvijek aktuelna)
+  DB.zevovi.forEach(z => { ZEVOVI[z.id] = z.naziv; });
+
+  // 2. Admin selecti — sve ZEV-ove iz baze
+  const adminSelekti = ['anketa-zev', 'admin-izv-zev', 'admin-savj-zev'];
+  adminSelekti.forEach(selId => {
     const sel = document.getElementById(selId);
     if (!sel) return;
-    sel.innerHTML = '';
-    const zevoviZaPrikaz = currentUser?.tip === 'vlasnik'
-      ? (currentUser.zevovi || [])
-      : DB.zevovi;
-    zevoviZaPrikaz.forEach(z => {
-      const opt = document.createElement('option');
-      opt.value = z.id; opt.textContent = z.naziv;
-      sel.appendChild(opt);
-    });
-    // Za vlasnika, podrazumijevano selektuj aktivni ZEV
-    if (selId === 'izv-zev' && currentUser?.tip === 'vlasnik' && currentUser.aktivniZev) {
-      sel.value = currentUser.aktivniZev;
+    const trenutnaVrijednost = sel.value;
+    sel.innerHTML = DB.zevovi.map(z =>
+      `<option value="${z.id}">${z.naziv}</option>`
+    ).join('');
+    // Zadrži trenutno selektovanu vrijednost ako još postoji
+    if (trenutnaVrijednost && DB.zevovi.find(z => z.id === trenutnaVrijednost)) {
+      sel.value = trenutnaVrijednost;
+    }
+    // Ažuriraj i pratećí naziv polje ako postoji (anketa forma)
+    if (selId === 'anketa-zev') {
+      const nazivEl = document.getElementById('anketa-zev-naziv');
+      if (nazivEl) nazivEl.value = ZEVOVI[sel.value] || '';
     }
   });
 
-  // Ako je izvještaj već bio prikazan, automatski ga ponovo učitaj za novi ZEV
+  // 3. Vlasnik/zajednički izvještaj select — samo ZEV-ovi u kojima vlasnik ima prostor
+  const izvSel = document.getElementById('izv-zev');
+  if (izvSel) {
+    const trenutnaVrijednost = izvSel.value;
+    const zevoviZaPrikaz = currentUser?.tip === 'vlasnik'
+      ? (currentUser.zevovi || [])
+      : DB.zevovi;
+    izvSel.innerHTML = zevoviZaPrikaz.map(z =>
+      `<option value="${z.id}">${z.naziv}</option>`
+    ).join('');
+    if (currentUser?.tip === 'vlasnik' && currentUser.aktivniZev) {
+      izvSel.value = currentUser.aktivniZev;
+    } else if (trenutnaVrijednost && zevoviZaPrikaz.find(z => z.id === trenutnaVrijednost)) {
+      izvSel.value = trenutnaVrijednost;
+    }
+  }
+
+  // 4. Auto-refresh izvještaja ako je već bio prikazan
   const sadrzaj = document.getElementById('izvjestaj-content');
   if (sadrzaj && sadrzaj.style.display !== 'none' && document.getElementById('izv-zev')) {
     ucitajIzvjestaj();
   }
+}
+
+// Ostavljeno zbog kompatibilnosti — sada samo poziva centralnu funkciju
+function azurirajZevSelecte() {
+  popuniZevSelecte();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2023,26 +2053,14 @@ function snimiZev() {
   } else {
     const id = 'zev_' + Date.now();
     DB.zevovi.push({ id, naziv, adresa, ziroRacun: ziro, brStanova, brGaraza, brPodruma, brPoslovnih });
-    ZEVOVI[id] = naziv;
-    azurirajZevSelecte(id, naziv);
     toast('ZEV uspješno kreiran!', 'success');
   }
 
   closeModal('modal-novi-zev');
   ocistiZevFormu();
   renderAdminZevovi();
+  popuniZevSelecte(); // Ažuriraj sve selecte i ZEVOVI mapu
   window.spremiUFirestore('zevovi');
-}
-
-function azurirajZevSelecte(id, naziv) {
-  ['anketa-zev','izv-zev'].forEach(selId => {
-    const sel = document.getElementById(selId);
-    if (sel) {
-      const opt = document.createElement('option');
-      opt.value = id; opt.textContent = naziv;
-      sel.appendChild(opt);
-    }
-  });
 }
 
 function urediZev(id) {
@@ -2677,9 +2695,28 @@ function getZevoviZaKorisnika(kod) {
   return zevIds.map(id => DB.zevovi.find(z => z.id === id)).filter(Boolean);
 }
 
+// Postavi/osvježi ZEV-ove za trenutnog vlasnika (iz DB.vlasnici koji mora biti učitan)
+function osvjeziZevoviVlasnika() {
+  if (!currentUser || currentUser.tip !== 'vlasnik') return;
+  const zevovi = getZevoviZaKorisnika(currentUser.kod);
+  currentUser.zevovi = zevovi;
+  if (!currentUser.aktivniZev || !zevovi.find(z => z.id === currentUser.aktivniZev)) {
+    currentUser.aktivniZev = zevovi[0]?.id || null;
+  }
+  const sel = document.getElementById('aktivni-zev-select');
+  if (sel) {
+    sel.innerHTML = zevovi.map(z => `<option value="${z.id}">${z.naziv}</option>`).join('');
+    sel.value = currentUser.aktivniZev || '';
+  }
+  document.getElementById('zev-selector-wrap').style.display = zevovi.length > 1 ? 'block' : 'none';
+  popuniZevSelecte();
+  popuniMobilniMeni();
+}
+
 function doLogin(user) {
   currentUser = user;
   document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('promjena-lozinke-screen').style.display = 'none';
   document.getElementById('app-screen').style.display = 'flex';
   document.getElementById('app-screen').style.flexDirection = 'column';
 
@@ -2699,21 +2736,21 @@ function doLogin(user) {
     document.getElementById('nav-admin-savjetnik').style.display = 'inline-flex';
     document.getElementById('nav-admin-komsija').style.display = 'inline-flex';
     document.querySelectorAll('.vlasnik-only').forEach(el => el.style.display = 'none');
+    popuniZevSelecte();
   } else {
     rb.textContent = 'Etažni vlasnik';
     rb.className = 'role-badge role-vlasnik';
-
-    // Učitaj ZEV-ove ovog korisnika (uklj. povezane nepokretnosti)
-    const zevovi = getZevoviZaKorisnika(user.kod);
-    currentUser.zevovi = zevovi;
-    currentUser.aktivniZev = zevovi[0]?.id || null;
-
-    // Popuni ZEV selector u topbaru
-    const sel = document.getElementById('aktivni-zev-select');
-    sel.innerHTML = zevovi.map(z => `<option value="${z.id}">${z.naziv}</option>`).join('');
-    document.getElementById('zev-selector-wrap').style.display = zevovi.length > 1 ? 'block' : 'none';
     document.getElementById('btn-poveci-nalog').style.display = 'inline-flex';
     document.getElementById('nav-savjetnik').style.display = 'inline-flex';
+    // Postavi ZEV-ove — ako Firebase još nije učitao podatke, sačekaj
+    if (window.__firebaseReady) {
+      osvjeziZevoviVlasnika();
+    } else {
+      // Firebase još nije učitao podatke — postavi placeholder i čekaj
+      currentUser.zevovi = [];
+      currentUser.aktivniZev = null;
+      // onFirebaseReady će pozvati osvjeziZevoviVlasnika()
+    }
   }
 
   popuniMobilniMeni();
@@ -4020,6 +4057,8 @@ function toast(msg, type = 'success') {
 
 window.renderPage = renderPage;
 window.toast = toast;
+window.popuniZevSelecte = popuniZevSelecte;
+window.osvjeziZevoviVlasnika = osvjeziZevoviVlasnika;
 
 // Dok se prvi put učitavaju podaci sa Firebase-a, prikaži kratku poruku
 // preko login ekrana da korisnik zna da app nije "zaglavila"
@@ -4037,6 +4076,17 @@ window.toast = toast;
 window.onFirebaseReady = function() {
   const overlay = document.getElementById('fb-loading-overlay');
   if (overlay) overlay.remove();
+
+  // Ako je vlasnik već ulogovan (brzi login), osvježi njegove ZEV-ove
+  // jer su podaci sad tek stvarno učitani iz Firebase
+  if (window.osvjeziZevoviVlasnika) window.osvjeziZevoviVlasnika();
+
+  // Osvježi sve ZEV selecte sa pravim podacima iz baze
+  if (window.popuniZevSelecte) window.popuniZevSelecte();
+
+  // Osvježi prikaz aktivne stranice
+  const aktivna = document.querySelector('.page.active')?.id?.replace('page-', '');
+  if (aktivna && window.renderPage) window.renderPage(aktivna);
 };
 
 // Sigurnosni fallback: ako se Firebase ne učita u razumnom roku

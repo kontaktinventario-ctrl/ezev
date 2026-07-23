@@ -1020,7 +1020,7 @@ body.admin .admin-only-block { display: block; }
         <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
           <div class="field" style="margin:0;flex:1;min-width:160px">
             <label>ZEV</label>
-            <select id="izv-zev"></select>
+            <select id="izv-zev" onchange="popuniIzvjestajPeriode(); document.getElementById('izvjestaj-content').style.display='none'"></select>
           </div>
           <div class="field" style="margin:0">
             <label>Tip</label>
@@ -1029,9 +1029,13 @@ body.admin .admin-only-block { display: block; }
               <option value="godisnji">Godišnji</option>
             </select>
           </div>
+          <div class="field" style="margin:0" id="izv-mjesec-wrap">
+            <label>Mjesec</label>
+            <select id="izv-mjesec"></select>
+          </div>
           <div class="field" style="margin:0">
-            <label id="period-label">Period</label>
-            <input id="izv-period" type="text" value="05/2026" placeholder="05/2026" style="width:110px">
+            <label>Godina</label>
+            <select id="izv-godina"></select>
           </div>
           <button class="btn btn-primary" onclick="ucitajIzvjestaj()">
             <i class="ti ti-search"></i> Prikaži
@@ -3526,6 +3530,8 @@ function exportPrijavaPdf(prijavId) {
 
 function initIzvjestaji() {
   popuniZevSelecte();
+  popuniIzvjestajPeriode();
+  document.getElementById('izvjestaj-content').style.display = 'none';
   if (currentUser?.tip === 'admin') {
     document.getElementById('izv-admin-panel').style.display = 'block';
     document.getElementById('izv-page-sub').textContent = 'Unos finansijskih podataka i pregled izvještaja';
@@ -3653,25 +3659,82 @@ function obrisiUnosIzvjestaja(id) {
   window.spremiUFirestore('finansijskiPodaci');
 }
 
+const MJESECI = [
+  {v:'01',n:'Januar'},{v:'02',n:'Februar'},{v:'03',n:'Mart'},
+  {v:'04',n:'April'},{v:'05',n:'Maj'},{v:'06',n:'Juni'},
+  {v:'07',n:'Juli'},{v:'08',n:'August'},{v:'09',n:'Septembar'},
+  {v:'10',n:'Oktobar'},{v:'11',n:'Novembar'},{v:'12',n:'Decembar'},
+];
+
+function popuniIzvjestajPeriode() {
+  const zevId = document.getElementById('izv-zev')?.value;
+  const tip = document.getElementById('izv-tip')?.value;
+  const godinaSel = document.getElementById('izv-godina');
+  const mjeSecSel = document.getElementById('izv-mjesec');
+  const mjeSecWrap = document.getElementById('izv-mjesec-wrap');
+  if (!godinaSel) return;
+
+  // Skupi dostupne periode za odabrani ZEV
+  const podaci = DB.finansijskiPodaci.filter(f => !zevId || f.zevId === zevId);
+  const godineSet = new Set(podaci.map(f => f.period.split('/')[1]).filter(Boolean));
+  const tekucaGod = String(new Date().getFullYear());
+  // Dodaj i tekuću godinu čak i ako nema podataka
+  godineSet.add(tekucaGod);
+  const godine = [...godineSet].sort((a,b) => b - a);
+
+  const prethodnaGod = godinaSel.value;
+  godinaSel.innerHTML = godine.map(g => `<option value="${g}">${g}</option>`).join('');
+  if (prethodnaGod && godineSet.has(prethodnaGod)) godinaSel.value = prethodnaGod;
+
+  if (tip === 'godisnji') {
+    if (mjeSecWrap) mjeSecWrap.style.display = 'none';
+  } else {
+    if (mjeSecWrap) mjeSecWrap.style.display = 'block';
+    if (!mjeSecSel) return;
+    const selGod = godinaSel.value;
+    const dostupniMjeseci = MJESECI.filter(m =>
+      podaci.some(f => f.period === m.v + '/' + selGod)
+    );
+    const prikazi = dostupniMjeseci.length > 0 ? dostupniMjeseci : MJESECI;
+    const prethodnimjesec = mjeSecSel.value;
+    mjeSecSel.innerHTML = prikazi.map(m =>
+      `<option value="${m.v}">${m.n} ${selGod}</option>`
+    ).join('');
+    if (prethodnimjesec && prikazi.find(m => m.v === prethodnimjesec)) {
+      mjeSecSel.value = prethodnimjesec;
+    } else {
+      // Selektuj tekući ili zadnji dostupni
+      const tekuciMj = String(new Date().getMonth()+1).padStart(2,'0');
+      const tekuciDost = prikazi.find(m => m.v === tekuciMj);
+      mjeSecSel.value = tekuciDost ? tekuciMj : prikazi[prikazi.length-1]?.v;
+    }
+  }
+}
+
 function updatePeriodField() {
-  const tip = document.getElementById('izv-tip').value;
-  document.getElementById('period-label').textContent = tip === 'mjesecni' ? 'Period (MM/GGGG)' : 'Godina';
-  document.getElementById('izv-period').placeholder = tip === 'mjesecni' ? '05/2026' : '2026';
-  document.getElementById('izv-period').value = tip === 'mjesecni' ? '05/2026' : '2026';
+  popuniIzvjestajPeriode();
   document.getElementById('izvjestaj-content').style.display = 'none';
 }
+
+// Mijenjanje godine treba da osvježi i listu dostupnih mjeseci
+document.getElementById('izv-godina')?.addEventListener('change', () => {
+  popuniIzvjestajPeriode();
+  document.getElementById('izvjestaj-content').style.display = 'none';
+});
 
 function ucitajIzvjestaj() {
   const zevId = document.getElementById('izv-zev').value;
   const tip = document.getElementById('izv-tip').value;
-  const period = document.getElementById('izv-period').value.trim();
+  const godina = document.getElementById('izv-godina')?.value;
+  const mjesec = document.getElementById('izv-mjesec')?.value;
+  const period = tip === 'mjesecni' ? (mjesec + '/' + godina) : godina;
   const z = DB.zevovi.find(z => z.id === zevId);
   if (!z) return;
 
   if (tip === 'mjesecni') {
     const f = DB.finansijskiPodaci.find(f => f.zevId === zevId && f.period === period);
     if (!f) {
-      toast('Nema unesenih podataka za ovaj period.', 'error');
+      toast('Nema unesenih podataka za odabrani period.', 'error');
       document.getElementById('izvjestaj-content').style.display = 'none';
       return;
     }
@@ -3686,32 +3749,19 @@ function ucitajIzvjestaj() {
     document.getElementById('izv-tabela-godisnji').style.display = 'none';
     const detalj = document.getElementById('izv-miesecni-detalj');
     detalj.style.display = 'block';
+    const mjNaziv = MJESECI.find(m => m.v === f.period.split('/')[0])?.n || f.period;
     detalj.querySelector('#izv-detalj-content').innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-        <div>
-          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">ZEV</div>
-          <div style="font-weight:500">${z.naziv}</div>
-        </div>
-        <div>
-          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Period</div>
-          <div style="font-weight:500;font-family:var(--font-mono)">${f.period}</div>
-        </div>
-        <div>
-          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Žiro račun</div>
-          <div style="font-family:var(--font-mono);font-size:12px">${z.ziroRacun}</div>
-        </div>
-        <div>
-          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Razlika (uplate − isplate)</div>
-          <div style="font-weight:600;color:${razlika>=0?'var(--green)':'var(--red)'}">${razlika>=0?'+':''}${razlika.toFixed(2)} KM</div>
-        </div>
+        <div><div style="font-size:11px;color:var(--text3);margin-bottom:4px">ZEV</div><div style="font-weight:500">${z.naziv}</div></div>
+        <div><div style="font-size:11px;color:var(--text3);margin-bottom:4px">Period</div><div style="font-weight:500">${mjNaziv} ${f.period.split('/')[1]}</div></div>
+        <div><div style="font-size:11px;color:var(--text3);margin-bottom:4px">Žiro račun</div><div style="font-family:var(--font-mono);font-size:12px">${z.ziroRacun}</div></div>
+        <div><div style="font-size:11px;color:var(--text3);margin-bottom:4px">Razlika</div><div style="font-weight:600;color:${razlika>=0?'var(--green)':'var(--red)'}">${razlika>=0?'+':''}${razlika.toFixed(2)} KM</div></div>
         ${f.napomena ? `<div style="grid-column:1/-1"><div style="font-size:11px;color:var(--text3);margin-bottom:4px">Napomena</div><div style="color:var(--text2)">${f.napomena}</div></div>` : ''}
       </div>`;
-
   } else {
-    // Godišnji
-    const godina = parseInt(period);
+    const godinaInt = parseInt(godina);
     const godisnjiPodaci = DB.finansijskiPodaci.filter(f =>
-      f.zevId === zevId && f.period.endsWith('/'+godina)
+      f.zevId === zevId && f.period.endsWith('/'+godinaInt)
     ).sort((a,b) => a.period.localeCompare(b.period));
 
     const ukUpl = godisnjiPodaci.reduce((s,f) => s+f.uplate, 0);
@@ -3726,16 +3776,16 @@ function ucitajIzvjestaj() {
       <div class="stat"><div class="stat-label">Dugovanja (kraj god.)</div><div class="stat-val" style="color:var(--red)">${zadnjeDug.toFixed(2)} KM</div></div>`;
 
     document.getElementById('izv-miesecni-detalj').style.display = 'none';
-    const tabela = document.getElementById('izv-tabela-godisnji');
-    tabela.style.display = 'block';
+    document.getElementById('izv-tabela-godisnji').style.display = 'block';
 
     if (godisnjiPodaci.length === 0) {
       document.getElementById('izv-mjeseci-body').innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Nema unesenih podataka za odabranu godinu.</td></tr>';
     } else {
       document.getElementById('izv-mjeseci-body').innerHTML = godisnjiPodaci.map(f => {
         const raz = f.uplate - f.isplate;
+        const mjNaziv = MJESECI.find(m => m.v === f.period.split('/')[0])?.n || f.period;
         return `<tr>
-          <td style="font-weight:600;font-family:var(--font-mono)">${f.period}</td>
+          <td style="font-weight:600">${mjNaziv} ${f.period.split('/')[1]}</td>
           <td style="color:var(--green)">${Number(f.uplate).toFixed(2)} KM</td>
           <td style="color:var(--red)">${Number(f.isplate).toFixed(2)} KM</td>
           <td>${Number(f.stanje).toFixed(2)} KM</td>
@@ -3750,7 +3800,136 @@ function ucitajIzvjestaj() {
 }
 
 function exportPdf() {
-  toast('PDF izvještaj se generiše... (U pravoj aplikaciji preuzima se PDF dokument)', 'success');
+  const zevId = document.getElementById('izv-zev')?.value;
+  const tip = document.getElementById('izv-tip')?.value;
+  const godina = document.getElementById('izv-godina')?.value;
+  const mjesec = document.getElementById('izv-mjesec')?.value;
+  const period = tip === 'miesecni' ? (mjesec + '/' + godina) : godina;
+  const z = DB.zevovi.find(z => z.id === zevId);
+
+  if (!z) { toast('Odaberite ZEV.', 'error'); return; }
+
+  // Provjeri da li je izvještaj uopšte prikazan
+  const sadrzaj = document.getElementById('izvjestaj-content');
+  if (!sadrzaj || sadrzaj.style.display === 'none') {
+    toast('Prvo prikažite izvještaj pa ga onda preuzmite.', 'error');
+    return;
+  }
+
+  const win = window.open('', '_blank');
+  if (!win) { toast('Dozvolite pop-up prozore za export PDF-a.', 'error'); return; }
+
+  // Prikupi podatke ovisno o tipu
+  let naslovPerioda = '';
+  let sadrzajHTML = '';
+
+  if (tip === 'godisnji') {
+    naslovPerioda = 'Godišnji izvještaj — ' + godina;
+    const godinaInt = parseInt(godina);
+    const podaci = DB.finansijskiPodaci
+      .filter(f => f.zevId === zevId && f.period.endsWith('/' + godinaInt))
+      .sort((a,b) => a.period.localeCompare(b.period));
+
+    const ukUpl = podaci.reduce((s,f) => s+f.uplate, 0);
+    const ukIsp = podaci.reduce((s,f) => s+f.isplate, 0);
+    const zadnjeStanje = podaci.length > 0 ? podaci[podaci.length-1].stanje : 0;
+    const zadnjeDug = podaci.length > 0 ? podaci[podaci.length-1].dugovanja : 0;
+
+    sadrzajHTML = `
+      <div class="summary">
+        <div class="sum-item"><div class="sum-label">Ukupno uplate</div><div class="sum-val green">${ukUpl.toFixed(2)} KM</div></div>
+        <div class="sum-item"><div class="sum-label">Ukupno isplate</div><div class="sum-val red">${ukIsp.toFixed(2)} KM</div></div>
+        <div class="sum-item"><div class="sum-label">Razlika</div><div class="sum-val ${ukUpl-ukIsp>=0?'green':'red'}">${(ukUpl-ukIsp>=0?'+':'') + (ukUpl-ukIsp).toFixed(2)} KM</div></div>
+        <div class="sum-item"><div class="sum-label">Stanje žiro (kraj god.)</div><div class="sum-val">${zadnjeStanje.toFixed(2)} KM</div></div>
+        <div class="sum-item"><div class="sum-label">Dugovanja (kraj god.)</div><div class="sum-val red">${zadnjeDug.toFixed(2)} KM</div></div>
+      </div>
+      <h3>Pregled po miesecima</h3>
+      <table>
+        <thead><tr><th>Period</th><th>Uplate (KM)</th><th>Isplate (KM)</th><th>Stanje žiro (KM)</th><th>Dugovanja (KM)</th><th>Razlika (KM)</th></tr></thead>
+        <tbody>
+        ${podaci.length === 0
+          ? '<tr><td colspan="6" style="text-align:center;color:#888">Nema unesenih podataka za ovu godinu.</td></tr>'
+          : podaci.map(f => {
+              const raz = f.uplate - f.isplate;
+              const mjNaziv = MJESECI.find(m => m.v === f.period.split('/')[0])?.n || f.period;
+              return `<tr>
+                <td><strong>${mjNaziv} ${f.period.split('/')[1]}</strong></td>
+                <td class="green">${Number(f.uplate).toFixed(2)}</td>
+                <td class="red">${Number(f.isplate).toFixed(2)}</td>
+                <td>${Number(f.stanje).toFixed(2)}</td>
+                <td class="red">${Number(f.dugovanja).toFixed(2)}</td>
+                <td class="${raz>=0?'green':'red'}">${raz>=0?'+':''}${raz.toFixed(2)}</td>
+              </tr>`;
+            }).join('')}
+        </tbody>
+      </table>`;
+  } else {
+    // Miesečni
+    const mjNaziv = MJESECI.find(m => m.v === mjesec)?.n || mjesec;
+    naslovPerioda = `Miesečni izvještaj — ${mjNaziv} ${godina}`;
+    const f = DB.finansijskiPodaci.find(f => f.zevId === zevId && f.period === (mjesec + '/' + godina));
+
+    if (!f) { win.close(); toast('Nema podataka za odabrani period.', 'error'); return; }
+
+    const razlika = f.uplate - f.isplate;
+    sadrzajHTML = `
+      <div class="summary">
+        <div class="sum-item"><div class="sum-label">Ukupno uplate</div><div class="sum-val green">${Number(f.uplate).toFixed(2)} KM</div></div>
+        <div class="sum-item"><div class="sum-label">Ukupno isplate</div><div class="sum-val red">${Number(f.isplate).toFixed(2)} KM</div></div>
+        <div class="sum-item"><div class="sum-label">Stanje žiro računa</div><div class="sum-val">${Number(f.stanje).toFixed(2)} KM</div></div>
+        <div class="sum-item"><div class="sum-label">Dugovanja</div><div class="sum-val red">${Number(f.dugovanja).toFixed(2)} KM</div></div>
+        <div class="sum-item"><div class="sum-label">Razlika</div><div class="sum-val ${razlika>=0?'green':'red'}">${razlika>=0?'+':''}${razlika.toFixed(2)} KM</div></div>
+      </div>
+      ${f.napomena ? `<div class="napomena"><strong>Napomena:</strong> ${f.napomena}</div>` : ''}`;
+  }
+
+  win.document.write(`<!DOCTYPE html>
+<html lang="bs"><head><meta charset="UTF-8">
+<title>${naslovPerioda} — ${z.naziv}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; color: #1a1a1a; padding: 36px; max-width: 800px; margin: 0 auto; font-size: 13px; }
+  .header { border-bottom: 3px solid #1a3a6b; padding-bottom: 14px; margin-bottom: 24px; display:flex; justify-content:space-between; align-items:flex-start; }
+  .header h1 { font-size: 18px; color: #1a3a6b; margin: 0 0 4px; }
+  .header .sub { font-size: 12px; color: #666; }
+  .meta { display:flex; gap:24px; margin-bottom:20px; flex-wrap:wrap; }
+  .meta-item .label { font-size:10px; color:#888; text-transform:uppercase; letter-spacing:.05em; margin-bottom:2px; }
+  .meta-item .val { font-size:13px; font-weight:500; }
+  .summary { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:24px; }
+  .sum-item { background:#f5f6f8; border-radius:8px; padding:12px 14px; }
+  .sum-label { font-size:10px; color:#888; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
+  .sum-val { font-size:18px; font-weight:700; color:#1a1a1a; }
+  .sum-val.green { color:#0f7a4d; }
+  .sum-val.red { color:#c0392b; }
+  h3 { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#555; margin:20px 0 10px; border-bottom:1px solid #ddd; padding-bottom:8px; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th { text-align:left; padding:8px 10px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#888; border-bottom:2px solid #ddd; background:#f9fafb; }
+  td { padding:8px 10px; border-bottom:1px solid #eee; }
+  tr:last-child td { border-bottom:none; }
+  tr:nth-child(even) td { background:#f9fafb; }
+  td.green { color:#0f7a4d; font-weight:500; }
+  td.red { color:#c0392b; font-weight:500; }
+  .napomena { background:#fff8e6; border-left:3px solid #f0c060; padding:10px 14px; margin-top:16px; font-size:12px; border-radius:0 6px 6px 0; }
+  .footer { margin-top:36px; padding-top:12px; border-top:1px solid #ddd; font-size:10px; color:#999; text-align:center; }
+  @media print { body { padding:16px; } }
+</style></head>
+<body>
+  <div class="header">
+    <div>
+      <h1>${naslovPerioda}</h1>
+      <div class="sub">e-ZEV — Finansijski izvještaj</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:11px;color:#666;margin-bottom:2px">${z.naziv}</div>
+      <div style="font-size:11px;color:#888">${z.adresa || ''}</div>
+      <div style="font-size:11px;color:#888;font-family:monospace">${z.ziroRacun || ''}</div>
+    </div>
+  </div>
+  ${sadrzajHTML}
+  <div class="footer">Generisano putem e-ZEV aplikacije &middot; ${new Date().toLocaleString('bs-BA')}</div>
+  <scr` + `ipt>window.onload=function(){setTimeout(function(){window.print()},300)};<\/scr` + `ipt>
+</body></html>`);
+  win.document.close();
 }
 
 // ═══════════════════════════════════════════════════════

@@ -3061,14 +3061,17 @@ function prikaziRezultate(anketaId) {
       </div>`;
     }).join('')}
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);margin-bottom:10px">Ko je kako glasao (${detalji.length})</div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);margin-bottom:10px">Ko je kako glasao (${detalji.length} glasača, ukupno ${ukupno} glasova)</div>
       ${detalji.length === 0
         ? '<div style="font-size:12px;color:var(--text3)">Još nema zabilježenih glasova.</div>'
         : detalji.map(d => `
           <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--bg3);border-radius:var(--radius);margin-bottom:6px;font-size:12px">
             <div>
               <div style="font-weight:500">${d.ime}</div>
-              <div style="color:var(--text3);font-size:11px">${new Date(d.datum).toLocaleString('bs-BA')}</div>
+              <div style="color:var(--text3);font-size:11px">
+                ${new Date(d.datum).toLocaleString('bs-BA')}
+                ${d.brojGlasova > 1 ? `· <span style="color:var(--accent)">${d.brojGlasova} glasa (${(d.prostori||[]).join(', ')})</span>` : ''}
+              </div>
             </div>
             <span class="badge badge-blue">${d.odabraneOpcije.join(', ')}</span>
           </div>`).join('')}
@@ -3110,6 +3113,7 @@ function exportRezultateGlasanja() {
           <tr style="background:#f0f2f5">
             <th style="text-align:left;padding:8px 10px;border-bottom:2px solid #ddd">Vlasnik</th>
             <th style="text-align:left;padding:8px 10px;border-bottom:2px solid #ddd">Kod</th>
+            <th style="text-align:left;padding:8px 10px;border-bottom:2px solid #ddd">Glasovi</th>
             <th style="text-align:left;padding:8px 10px;border-bottom:2px solid #ddd">Odabrao/la</th>
             <th style="text-align:left;padding:8px 10px;border-bottom:2px solid #ddd">Datum i vrijeme</th>
           </tr>
@@ -3119,6 +3123,10 @@ function exportRezultateGlasanja() {
             <tr style="background:${i % 2 === 0 ? '#fff' : '#f8f9fb'}">
               <td style="padding:8px 10px;border-bottom:1px solid #eee">${d.ime}</td>
               <td style="padding:8px 10px;border-bottom:1px solid #eee;font-family:monospace">${d.kod}</td>
+              <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:center">
+                <strong>${d.brojGlasova || 1}</strong>
+                ${d.prostori && d.prostori.length > 1 ? `<br><span style="font-size:11px;color:#888">${d.prostori.join(', ')}</span>` : ''}
+              </td>
               <td style="padding:8px 10px;border-bottom:1px solid #eee">${d.odabraneOpcije.join(', ')}</td>
               <td style="padding:8px 10px;border-bottom:1px solid #eee;color:#666">${new Date(d.datum).toLocaleString('bs-BA')}</td>
             </tr>`).join('')}

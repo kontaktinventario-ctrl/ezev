@@ -1772,7 +1772,7 @@ let DB = {
       pitanje: 'Da li ste saglasni sa angažovanjem novog servisa čišćenja od 01.06.2026.?',
       tip: 'jedan',
       opcije: ['Da, slažem se', 'Ne, nisam saglasan/na', 'Suzdržan/na'],
-      krajDatum: '2026-06-15',
+      krajDatum: '2027-06-15',
       aktivna: true,
       glasovi: { 'a1': 0, 'b1': 0, 'c1': 0 },
       glasali: [],
@@ -1783,7 +1783,7 @@ let DB = {
       pitanje: 'Izbor predsjednika skupštine za naredni period',
       tip: 'jedan',
       opcije: ['Mirna Kovačević', 'Igor Savić', 'Jelena Marić'],
-      krajDatum: '2026-05-20',
+      krajDatum: '2027-05-20',
       aktivna: false,
       glasovi: { 'a2': 12, 'b2': 5, 'c2': 3 },
       glasali: ['10043', '10044'],
@@ -2964,13 +2964,27 @@ function selectOption(label, anketaId, idx) {
 }
 
 function glasaj(anketaId) {
-  const card = document.querySelector(`[onclick="glasaj('${anketaId}')"]`)?.closest('.card');
-  if (!card) return;
   const anketa = DB.ankete.find(a => a.id === anketaId);
   if (!anketa) return;
 
+  // Nađi card direktno iz DOM-a — ne oslanjamo se na querySelector sa apostrofima
+  const sviCardovi = document.querySelectorAll('.card');
+  let card = null;
+  sviCardovi.forEach(c => {
+    const btn = c.querySelector(`button[onclick*="${anketaId}"]`);
+    if (btn) card = c;
+  });
+  if (!card) return;
+
   const selected = card.querySelectorAll('.vote-option.selected');
   if (selected.length === 0) { toast('Odaberite barem jednu opciju.', 'error'); return; }
+
+  // Izbroji koliko prostora vlasnik ima u ovom ZEV-u (ponderisano glasanje)
+  const kodovi = getPovezaniKodovi(currentUser?.kod);
+  const prostoriUZevu = DB.vlasnici.filter(v =>
+    kodovi.includes(v.kod) && v.zevId === anketa.zev
+  );
+  const brojGlasova = Math.max(1, prostoriUZevu.length);
 
   const opcijeKeys = Object.keys(anketa.glasovi);
   const odabraniIndeksi = [];
@@ -2979,22 +2993,27 @@ function glasaj(anketaId) {
     const idx = parseInt(s.querySelector('input').value);
     odabraniIndeksi.push(idx);
     const kljuc = opcijeKeys[idx];
-    if (kljuc) anketa.glasovi[kljuc] = (anketa.glasovi[kljuc] || 0) + 1;
+    if (kljuc) anketa.glasovi[kljuc] = (anketa.glasovi[kljuc] || 0) + brojGlasova;
   });
 
+  // Označi SVE kodove vlasnika kao glasale (spriječi duplo glasanje)
   anketa.glasali = anketa.glasali || [];
-  anketa.glasali.push(currentUser?.kod);
+  kodovi.forEach(k => { if (!anketa.glasali.includes(k)) anketa.glasali.push(k); });
 
-  // Detaljno čuvanje ko je kako glasao (za admin export)
   anketa.detaljiGlasanja = anketa.detaljiGlasanja || [];
   anketa.detaljiGlasanja.push({
     kod: currentUser?.kod,
     ime: currentUser?.ime,
     odabraneOpcije: odabraniIndeksi.map(i => anketa.opcije[i]),
+    brojGlasova,
+    prostori: prostoriUZevu.map(p => p.oznaka),
     datum: new Date().toISOString(),
   });
 
-  toast('Vaš glas je zabilježen!', 'success');
+  const poruka = brojGlasova > 1
+    ? `Vaš glas je zabilježen! (${brojGlasova} glasa — imate ${brojGlasova} prostora u ovoj zajednici)`
+    : 'Vaš glas je zabilježen!';
+  toast(poruka, 'success');
   renderGlasanjeVlasnik();
   window.spremiUFirestore('ankete');
 }

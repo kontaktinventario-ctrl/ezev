@@ -2915,7 +2915,7 @@ function renderGlasanjeVlasnik() {
     if (!zatvorena && !vecGlasao) {
       const inputType = a.tip === 'jedan' ? 'radio' : 'checkbox';
       opcijeHTML = a.opcije.map((op,i) => `
-        <label class="vote-option" onclick="selectOption(this, '${a.id}', ${i})">
+        <label class="vote-option" onclick="selectOption(this, '${a.id}', ${i}, event)">
           <input type="${inputType}" name="vote-${a.id}" value="${i}">
           <span class="vote-option-text">${op}</span>
         </label>`).join('');
@@ -2962,13 +2962,21 @@ function renderGlasanjeVlasnik() {
   }).join('');
 }
 
-function selectOption(label, anketaId, idx) {
+function selectOption(label, anketaId, idx, event) {
+  if (event) event.preventDefault(); // Spriječi dvostruki okidač od label+checkbox
   const anketa = DB.ankete.find(a => a.id === anketaId);
   if (!anketa) return;
   if (anketa.tip === 'jedan') {
+    // Radio — skini sa svih, označi samo kliknutu
     label.closest('.card').querySelectorAll('.vote-option').forEach(o => o.classList.remove('selected'));
+    label.classList.add('selected');
+  } else {
+    // Checkbox — toggle: ako je označena skini, ako nije označi
+    label.classList.toggle('selected');
   }
-  label.classList.toggle('selected');
+  // Sinhronizuj vizuelno stanje checkboxa/radija sa .selected klasom
+  const input = label.querySelector('input');
+  if (input) input.checked = label.classList.contains('selected');
 }
 
 function glasaj(anketaId, dugme) {

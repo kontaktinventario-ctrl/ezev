@@ -2902,9 +2902,14 @@ function renderGlasanjeVlasnik() {
 
   cont.innerHTML = ankete.map(a => {
     const ukupno = Object.values(a.glasovi).reduce((s,v) => s + v, 0);
-    const vecGlasao = a.glasali?.includes(currentUser?.kod);
+    // Provjeri SVE kodove vlasnika (ne samo trenutni) — sprečava duplo glasanje kroz drugi kod
+    const kodovi = getPovezaniKodovi(currentUser?.kod);
+    const vecGlasao = kodovi.some(k => a.glasali?.includes(k));
     const istekao = new Date(a.krajDatum) < new Date();
     const zatvorena = a.zatvorena || istekao;
+    // Broj glasova = broj prostora vlasnika u ovom ZEV-u
+    const prostoriUZevu = DB.vlasnici.filter(v => kodovi.includes(v.kod) && v.zevId === a.zev);
+    const brojGlasova = Math.max(1, prostoriUZevu.length);
 
     let opcijeHTML = '';
     if (!zatvorena && !vecGlasao) {
@@ -2914,8 +2919,11 @@ function renderGlasanjeVlasnik() {
           <input type="${inputType}" name="vote-${a.id}" value="${i}">
           <span class="vote-option-text">${op}</span>
         </label>`).join('');
-      opcijeHTML += `<button class="btn btn-primary" style="margin-top:12px" onclick="glasaj('${a.id}')">
-        <i class="ti ti-check"></i> Potvrdi glas</button>`;
+      if (brojGlasova > 1) {
+        opcijeHTML = `<div style="font-size:12px;color:var(--accent);margin-bottom:10px;padding:8px 12px;background:var(--accent-glow);border-radius:var(--radius)"><i class="ti ti-info-circle"></i> Imate ${brojGlasova} prostora u ovoj zajednici — vaš glas se računa ${brojGlasova} puta.</div>` + opcijeHTML;
+      }
+      opcijeHTML += `<button class="btn btn-primary" style="margin-top:12px" onclick="glasaj('${a.id}', this)">
+        <i class="ti ti-check"></i> Potvrdi glas${brojGlasova > 1 ? ` (${brojGlasova} glasa)` : ''}</button>`;
     } else {
       const glasoviArr = Object.values(a.glasovi);
       opcijeHTML = a.opcije.map((op,i) => {
@@ -2963,18 +2971,13 @@ function selectOption(label, anketaId, idx) {
   label.classList.toggle('selected');
 }
 
-function glasaj(anketaId) {
+function glasaj(anketaId, dugme) {
   const anketa = DB.ankete.find(a => a.id === anketaId);
   if (!anketa) return;
 
-  // Nađi card direktno iz DOM-a — ne oslanjamo se na querySelector sa apostrofima
-  const sviCardovi = document.querySelectorAll('.card');
-  let card = null;
-  sviCardovi.forEach(c => {
-    const btn = c.querySelector(`button[onclick*="${anketaId}"]`);
-    if (btn) card = c;
-  });
-  if (!card) return;
+  // Nađi card kao najbliži ancestor od dugmeta koje je kliknuto
+  const card = dugme ? dugme.closest('.card') : null;
+  if (!card) { toast('Greška pri glasanju. Osvježite stranicu.', 'error'); return; }
 
   const selected = card.querySelectorAll('.vote-option.selected');
   if (selected.length === 0) { toast('Odaberite barem jednu opciju.', 'error'); return; }

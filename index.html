@@ -2932,9 +2932,12 @@ function renderAdminPregled() {
   const ukupnoJedinica = DB.vlasnici.length;
   const ukupnoKvM = DB.vlasnici.reduce((s, v) => s + (parseFloat(v.povrsina) || 0), 0);
   const prosjecnaKv = ukupnoJedinica > 0 ? (ukupnoKvM / ukupnoJedinica) : 0;
-  const promjeniliSifru = KORISNICI.filter(k => k.passwordHash && !k.mustChangePassword).length;
-  const ukupnoKorisnika = KORISNICI.length;
-  const cekajuPromjenu = KORISNICI.filter(k => k.mustChangePassword).length;
+  // Broji samo korisnike koji imaju unos u DB.vlasnici (ignorira demo/zaostale podatke)
+  const validniKodovi = new Set(DB.vlasnici.map(v => v.kod));
+  const validniKorisnici = KORISNICI.filter(k => validniKodovi.has(k.kod));
+  const promjeniliSifru = validniKorisnici.filter(k => k.passwordHash && !k.mustChangePassword).length;
+  const ukupnoKorisnika = validniKorisnici.length;
+  const cekajuPromjenu = validniKorisnici.filter(k => k.mustChangePassword || !k.passwordHash).length;
   const aktivneAnkete = DB.ankete.filter(a => !a.zatvorena && new Date(a.krajDatum) >= new Date()).length;
   const otvorenePrijave = DB.prijave.filter(p => p.status !== 'RIJESENO').length;
 
@@ -2983,7 +2986,7 @@ function renderAdminPregled() {
       const poslovni = vlasnici.filter(v => v.tip === 'POSLOVNI').length;
       const korisnici = KORISNICI.filter(k => vlasnici.some(v => v.kod === k.kod));
       const promjenili = korisnici.filter(k => k.passwordHash && !k.mustChangePassword).length;
-      const cekaju = korisnici.filter(k => k.mustChangePassword).length;
+      const cekaju = korisnici.filter(k => k.mustChangePassword || !k.passwordHash).length;
       const anketaZev = DB.ankete.filter(a => a.zev === z.id && !a.zatvorena && new Date(a.krajDatum) >= new Date()).length;
       const prijaveZev = DB.prijave.filter(p => p.zev === z.id && p.status !== 'RIJESENO').length;
 

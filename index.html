@@ -806,6 +806,9 @@ body.admin .admin-only-block { display: block; }
         <i class="ti ti-discount-2"></i> Komšija+
       </button>
       <!-- Admin only -->
+      <button class="nav-btn admin-only" onclick="showPage('admin-pregled')" id="nav-admin-pregled" style="display:none">
+        <i class="ti ti-layout-dashboard"></i> Pregled
+      </button>
       <button class="nav-btn admin-only" onclick="showPage('admin-zevovi')" id="nav-admin-zevovi" style="display:none">
         <i class="ti ti-building-community"></i> ZEV-ovi
       </button>
@@ -860,6 +863,20 @@ body.admin .admin-only-block { display: block; }
   <div class="content">
 
     <!-- ══ ADMIN — ZEV-OVI ══ -->
+    <!-- ═══ ADMIN: PREGLED ═══════════════════════════════ -->
+    <div class="page" id="page-admin-pregled">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Pregled</div>
+          <div class="page-sub">Statistike svih zajednica etažnih vlasnika</div>
+        </div>
+        <button class="btn" onclick="renderAdminPregled()"><i class="ti ti-refresh"></i> Osvježi</button>
+      </div>
+
+      <!-- Kartice po ZEV-ovima -->
+      <div id="admin-pregled-lista"></div>
+    </div>
+
     <div class="page" id="page-admin-zevovi">
       <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
         <div>
@@ -2734,6 +2751,7 @@ function doLogin(user) {
     rb.textContent = 'Admin';
     rb.className = 'role-badge role-admin';
     document.body.classList.add('admin');
+    document.getElementById('nav-admin-pregled').style.display = 'inline-flex';
     document.getElementById('nav-admin-zevovi').style.display = 'inline-flex';
     document.getElementById('nav-admin-glasanje').style.display = 'inline-flex';
     document.getElementById('nav-admin-prijave').style.display = 'inline-flex';
@@ -2758,7 +2776,7 @@ function doLogin(user) {
   }
 
   popuniMobilniMeni();
-  showPage('glasanje');
+  showPage(user.tip === 'admin' ? 'admin-pregled' : 'glasanje');
 }
 
 // Promjena aktivnog ZEV-a za vlasnika (kad ima više nepokretnosti)
@@ -2774,6 +2792,7 @@ function odjava() {
   document.body.classList.remove('admin');
   document.getElementById('app-screen').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('nav-admin-pregled').style.display = 'none';
   document.getElementById('nav-admin-zevovi').style.display = 'none';
   document.getElementById('nav-admin-glasanje').style.display = 'none';
   document.getElementById('nav-admin-prijave').style.display = 'none';
@@ -2824,6 +2843,7 @@ function popuniMobilniMeni() {
     { id: 'izvjestaji', icon: 'ti-chart-bar', naziv: 'Izvještaji', samo: null },
     { id: 'savjetnik', icon: 'ti-message-chatbot', naziv: 'Virtuelni savjetnik', samo: 'vlasnik' },
     { id: 'komsija', icon: 'ti-discount-2', naziv: 'Komšija+', samo: null },
+    { id: 'admin-pregled', icon: 'ti-layout-dashboard', naziv: 'Pregled', samo: 'admin' },
     { id: 'admin-zevovi', icon: 'ti-building-community', naziv: 'ZEV-ovi', samo: 'admin' },
     { id: 'admin-glasanje', icon: 'ti-settings', naziv: 'Glasanje (admin)', samo: 'admin' },
     { id: 'admin-prijave', icon: 'ti-inbox', naziv: 'Primljene prijave', samo: 'admin' },
@@ -2879,6 +2899,135 @@ function renderPage(id) {
   if (id === 'admin-savjetnik') initAdminSavjetnik();
   if (id === 'komsija') renderKomsijaVlasnik();
   if (id === 'admin-komsija') renderAdminKomsija();
+}
+
+function renderPage(id) {
+  if (id === 'admin-pregled') renderAdminPregled();
+  if (id === 'admin-zevovi') renderAdminZevovi();
+  if (id === 'glasanje') renderGlasanjeVlasnik();
+  if (id === 'admin-glasanje') renderAdminGlasanje();
+  if (id === 'prijave') renderPrijaveVlasnik();
+  if (id === 'admin-prijave') renderAdminPrijave();
+  if (id === 'izvjestaji') initIzvjestaji();
+  if (id === 'savjetnik') renderSavjetnik();
+  if (id === 'admin-savjetnik') initAdminSavjetnik();
+  if (id === 'komsija') renderKomsijaVlasnik();
+  if (id === 'admin-komsija') renderAdminKomsija();
+}
+
+// ═══════════════════════════════════════════════════════
+// ADMIN: PREGLED
+// ═══════════════════════════════════════════════════════
+
+function renderAdminPregled() {
+  const lista = document.getElementById('admin-pregled-lista');
+  if (!lista) return;
+
+  if (DB.zevovi.length === 0) {
+    lista.innerHTML = '<div class="card" style="text-align:center;color:var(--text3);padding:40px">Nema unesenih ZEV-ova.</div>';
+    return;
+  }
+
+  // Globalne statistike (sve ZEV-ove zajedno)
+  const ukupnoJedinica = DB.vlasnici.length;
+  const ukupnoKvM = DB.vlasnici.reduce((s, v) => s + (parseFloat(v.povrsina) || 0), 0);
+  const prosjecnaKv = ukupnoJedinica > 0 ? (ukupnoKvM / ukupnoJedinica) : 0;
+  const promjeniliSifru = KORISNICI.filter(k => k.passwordHash && !k.mustChangePassword).length;
+  const ukupnoKorisnika = KORISNICI.length;
+  const cekajuPromjenu = KORISNICI.filter(k => k.mustChangePassword).length;
+  const aktivneAnkete = DB.ankete.filter(a => !a.zatvorena && new Date(a.krajDatum) >= new Date()).length;
+  const otvorenePrijave = DB.prijave.filter(p => p.status !== 'RIJESENO').length;
+
+  lista.innerHTML = `
+    <!-- Globalni pregled -->
+    <div style="margin-bottom:24px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);margin-bottom:12px">Ukupno — svi ZEV-ovi</div>
+      <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+        <div class="stat">
+          <div class="stat-label">Ukupno jedinica</div>
+          <div class="stat-val">${ukupnoJedinica}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Prosječna kvadratura</div>
+          <div class="stat-val">${prosjecnaKv.toFixed(1)} m²</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Korisnici (postav. šifru)</div>
+          <div class="stat-val" style="color:var(--green)">${promjeniliSifru} <span style="font-size:14px;color:var(--text3)">/ ${ukupnoKorisnika}</span></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Čekaju promjenu šifre</div>
+          <div class="stat-val" style="color:${cekajuPromjenu > 0 ? 'var(--yellow, #f0c060)' : 'var(--green)'}">${cekajuPromjenu}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Aktivne ankete</div>
+          <div class="stat-val">${aktivneAnkete}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Otvorene prijave</div>
+          <div class="stat-val" style="color:${otvorenePrijave > 0 ? 'var(--red)' : 'var(--green)'}">${otvorenePrijave}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pregled po ZEV-ovima -->
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);margin-bottom:12px">Pregled po zajednicama</div>
+    ${DB.zevovi.map(z => {
+      const vlasnici = DB.vlasnici.filter(v => v.zevId === z.id);
+      const ukJed = vlasnici.length;
+      const ukKv = vlasnici.reduce((s,v) => s + (parseFloat(v.povrsina)||0), 0);
+      const prosKv = ukJed > 0 ? ukKv / ukJed : 0;
+      const stanovi = vlasnici.filter(v => v.tip === 'STAN').length;
+      const garaze = vlasnici.filter(v => v.tip === 'GARAZA').length;
+      const podrumi = vlasnici.filter(v => v.tip === 'PODRUM').length;
+      const poslovni = vlasnici.filter(v => v.tip === 'POSLOVNI').length;
+      const korisnici = KORISNICI.filter(k => vlasnici.some(v => v.kod === k.kod));
+      const promjenili = korisnici.filter(k => k.passwordHash && !k.mustChangePassword).length;
+      const cekaju = korisnici.filter(k => k.mustChangePassword).length;
+      const anketaZev = DB.ankete.filter(a => a.zev === z.id && !a.zatvorena && new Date(a.krajDatum) >= new Date()).length;
+      const prijaveZev = DB.prijave.filter(p => p.zev === z.id && p.status !== 'RIJESENO').length;
+
+      return `<div class="card" style="margin-bottom:16px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+          <div>
+            <div style="font-weight:700;font-size:16px;margin-bottom:4px">${z.naziv}</div>
+            <div style="font-size:12px;color:var(--text3)">${z.adresa || '—'}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${anketaZev > 0 ? `<span class="badge badge-green"><i class="ti ti-checkup-list"></i> ${anketaZev} aktivna anketa</span>` : ''}
+            ${prijaveZev > 0 ? `<span class="badge badge-yellow"><i class="ti ti-tool"></i> ${prijaveZev} otvorena prijava</span>` : ''}
+          </div>
+        </div>
+        <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+          <div class="stat" style="padding:10px 14px">
+            <div class="stat-label">Ukupno jedinica</div>
+            <div class="stat-val">${ukJed}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px">
+              ${stanovi > 0 ? `${stanovi} stan${stanovi !== 1 ? 'a' : ''}` : ''}
+              ${garaze > 0 ? ` · ${garaze} garaž${garaze !== 1 ? 'e' : 'a'}` : ''}
+              ${podrumi > 0 ? ` · ${podrumi} podrum${podrumi !== 1 ? 'a' : ''}` : ''}
+              ${poslovni > 0 ? ` · ${poslovni} poslovn${poslovni !== 1 ? 'ih' : 'i'}` : ''}
+            </div>
+          </div>
+          <div class="stat" style="padding:10px 14px">
+            <div class="stat-label">Ukupna površina</div>
+            <div class="stat-val">${ukKv.toFixed(0)} m²</div>
+          </div>
+          <div class="stat" style="padding:10px 14px">
+            <div class="stat-label">Prosj. kvadratura</div>
+            <div class="stat-val">${prosKv.toFixed(1)} m²</div>
+          </div>
+          <div class="stat" style="padding:10px 14px">
+            <div class="stat-label">Korisnici</div>
+            <div class="stat-val">${korisnici.length}</div>
+            <div style="font-size:11px;margin-top:4px">
+              <span style="color:var(--green)"><i class="ti ti-shield-check"></i> ${promjenili} postav. šifru</span>
+              ${cekaju > 0 ? `<br><span style="color:var(--text3)"><i class="ti ti-clock"></i> ${cekaju} čeka promjenu</span>` : ''}
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }).join('')}`;
 }
 
 // ═══════════════════════════════════════════════════════

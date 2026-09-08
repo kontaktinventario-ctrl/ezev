@@ -983,7 +983,15 @@ body.admin .admin-only-block { display: block; }
           <div class="page-title">Prijava problema</div>
           <div class="page-sub">Vaše prijave i njihov status</div>
         </div>
-        <button class="btn btn-primary" onclick="document.getElementById('prijava-zev-prikaz').value = ZEVOVI[currentUser?.aktivniZev] || ''; openModal('modal-nova-prijava')">
+        <button class="btn btn-primary" onclick="
+          document.getElementById('prijava-zev-prikaz').value = ZEVOVI[currentUser?.aktivniZev] || DB.zevovi.find(z=>z.id===currentUser?.aktivniZev)?.naziv || '';
+          document.getElementById('prijava-zev-vlasnik-wrap').style.display='block';
+          document.getElementById('prijava-zev-admin-wrap').style.display='none';
+          document.getElementById('prijava-naslov').value='';
+          document.getElementById('prijava-opis').value='';
+          document.getElementById('prijava-slika').value='';
+          document.getElementById('prijava-slika-preview').style.display='none';
+          openModal('modal-nova-prijava')">
           <i class="ti ti-plus"></i> Nova prijava
         </button>
       </div>
@@ -993,8 +1001,13 @@ body.admin .admin-only-block { display: block; }
     <!-- ══ PRIJAVE — ADMIN ══ -->
     <div class="page" id="page-admin-prijave">
       <div class="page-header">
-        <div class="page-title">Primljene prijave</div>
-        <div class="page-sub">Prijave problema od etažnih vlasnika</div>
+        <div>
+          <div class="page-title">Primljene prijave</div>
+          <div class="page-sub">Prijave problema od etažnih vlasnika</div>
+        </div>
+        <button class="btn btn-primary" onclick="otvoriNovuPrijavuAdmin()">
+          <i class="ti ti-plus"></i> Nova prijava
+        </button>
       </div>
       <div id="admin-prijave-lista"></div>
     </div>
@@ -1214,9 +1227,15 @@ body.admin .admin-only-block { display: block; }
 <div class="modal-overlay" id="modal-nova-prijava">
   <div class="modal">
     <div class="modal-title"><i class="ti ti-tool" style="color:var(--accent)"></i> Nova prijava problema</div>
-    <div class="field">
+    <!-- Vlasnik: readonly prikaz svog ZEV-a -->
+    <div class="field vlasnik-only-field" id="prijava-zev-vlasnik-wrap">
       <label>ZEV</label>
       <input type="text" id="prijava-zev-prikaz" readonly style="opacity:0.7">
+    </div>
+    <!-- Admin: select ZEV-a -->
+    <div class="field admin-only-field" id="prijava-zev-admin-wrap" style="display:none">
+      <label>ZEV</label>
+      <select id="prijava-zev-select"></select>
     </div>
     <div class="field">
       <label>Naslov problema</label>
@@ -1742,10 +1761,27 @@ window.spremiUFirestore = async function(kol) {
   const ref = doc(dbFirestore, 'ezev', kol);
   window.__firebaseSaving[kol] = true;
   try {
-    await setDoc(ref, { podaci: dohvatiLokalnePodatke(kol) });
+    const podaci = dohvatiLokalnePodatke(kol);
+    const velicina = JSON.stringify(podaci).length;
+
+    // Firestore limit je ~1MB po dokumentu — upozori ako se približavamo
+    if (velicina > 900000) {
+      console.warn('Upozorenje: dokument ' + kol + ' je velik (' + Math.round(velicina/1024) + 'KB). Razmotri brisanje starih unosa.');
+      if (window.toast) window.toast('Upozorenje: baza prijava je velika. Razmotri brisanje starih prijava.', 'error');
+      setTimeout(() => { window.__firebaseSaving[kol] = false; }, 300);
+      return;
+    }
+
+    await setDoc(ref, { podaci });
   } catch (e) {
     console.error('Greška pri snimanju u Firestore (' + kol + '):', e);
-    if (window.toast) window.toast('Greška pri sinhronizaciji sa bazom. Provjerite internet konekciju.', 'error');
+    if (window.toast) {
+      if (e.code === 'resource-exhausted' || (e.message && e.message.includes('exceeds'))) {
+        window.toast('Prijava nije sačuvana — dokument je prevelik (previše slika). Obriši stare prijave.', 'error');
+      } else {
+        window.toast('Prijava nije sačuvana. Provjerite internet konekciju i pokušajte ponovo.', 'error');
+      }
+    }
   }
   setTimeout(() => { window.__firebaseSaving[kol] = false; }, 300);
 };
@@ -3541,22 +3577,45 @@ function previewSlikaPrijave(input) {
   });
 }
 
+function otvoriNovuPrijavuAdmin() {
+  // Popuni ZEV select sa svim ZEV-ovima
+  const sel = document.getElementById('prijava-zev-select');
+  sel.innerHTML = DB.zevovi.map(z => `<option value="${z.id}">${z.naziv}</option>`).join('');
+
+  // Prikaži admin select, sakrij vlasnik readonly polje
+  document.getElementById('prijava-zev-vlasnik-wrap').style.display = 'none';
+  document.getElementById('prijava-zev-admin-wrap').style.display = 'block';
+
+  document.getElementById('prijava-naslov').value = '';
+  document.getElementById('prijava-opis').value = '';
+  document.getElementById('prijava-slika').value = '';
+  document.getElementById('prijava-slika-preview').style.display = 'none';
+  openModal('modal-nova-prijava');
+}
+
 function kreirajPrijavu() {
-  const zev = currentUser?.aktivniZev;
+  // Admin bira ZEV iz selecta, vlasnik ima aktivniZev
+  const jeAdmin = currentUser?.tip === 'admin';
+  const zev = jeAdmin
+    ? document.getElementById('prijava-zev-select')?.value
+    : currentUser?.aktivniZev;
+
   const naslov = document.getElementById('prijava-naslov').value.trim();
   const opis = document.getElementById('prijava-opis').value.trim();
   const slikaInput = document.getElementById('prijava-slika');
   const file = slikaInput.files?.[0];
 
+  if (!zev) { toast('Odaberite ZEV.', 'error'); return; }
   if (!naslov) { toast('Unesite naslov.', 'error'); return; }
   if (!opis) { toast('Unesite opis.', 'error'); return; }
 
   const sacuvajPrijavu = (slikaUrl) => {
     DB.prijave.unshift({
       id: 'p' + Date.now(),
-      zev, zevNaziv: ZEVOVI[zev],
+      zev,
+      zevNaziv: ZEVOVI[zev] || DB.zevovi.find(z => z.id === zev)?.naziv || zev,
       korisnikKod: currentUser?.kod,
-      korisnikIme: currentUser?.ime,
+      korisnikIme: jeAdmin ? 'Administrator' : currentUser?.ime,
       naslov, opis,
       slikaUrl: slikaUrl || null,
       status: 'NOVA',
@@ -3570,17 +3629,20 @@ function kreirajPrijavu() {
     slikaInput.value = '';
     slikaInput._kompresovanaSlika = null;
     document.getElementById('prijava-slika-preview').style.display = 'none';
-    toast('Prijava uspješno poslana!', 'success');
-    renderPrijaveVlasnik();
+    toast('Prijava uspješno kreirana!', 'success');
+
+    if (jeAdmin) {
+      renderAdminPrijave();
+    } else {
+      renderPrijaveVlasnik();
+    }
     window.spremiUFirestore('prijave');
   };
 
   if (file) {
-    // Ako je slika već kompresovana u previewu — koristi tu verziju odmah
     if (slikaInput._kompresovanaSlika) {
       sacuvajPrijavu(slikaInput._kompresovanaSlika);
     } else {
-      // Inače kompresuj pa spremi
       kompresujSliku(file, sacuvajPrijavu);
     }
   } else {

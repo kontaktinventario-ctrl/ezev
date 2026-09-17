@@ -824,6 +824,15 @@ body.admin .admin-only-block { display: block; }
       <button class="nav-btn admin-only" onclick="showPage('admin-komsija')" id="nav-admin-komsija" style="display:none">
         <i class="ti ti-discount-2"></i> Komšija+
       </button>
+      <button class="nav-btn admin-only" onclick="showPage('admin-budzet')" id="nav-admin-budzet" style="display:none">
+        <i class="ti ti-chart-pie"></i> Budžet
+      </button>
+      <button class="nav-btn admin-only" onclick="showPage('admin-kontakti')" id="nav-admin-kontakti" style="display:none">
+        <i class="ti ti-phone-call"></i> Kontakti
+      </button>
+      <button class="nav-btn vlasnik-only" onclick="showPage('kontakti')" id="nav-kontakti" style="display:none">
+        <i class="ti ti-phone-call"></i> Kontakti
+      </button>
     </nav>
 
     <div class="topbar-right">
@@ -1162,6 +1171,53 @@ body.admin .admin-only-block { display: block; }
       <div id="admin-komsija-lista" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px"></div>
     </div>
 
+    <!-- ══ BUDŽET (admin) ══ -->
+    <div class="page" id="page-admin-budzet">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Godišnji plan i budžet</div>
+          <div class="page-sub">Plan prihoda i rashoda po zajednicama</div>
+        </div>
+        <button class="btn btn-primary" onclick="openNoviBudzet()">
+          <i class="ti ti-plus"></i> Novi plan
+        </button>
+      </div>
+      <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end">
+        <div class="field" style="margin:0;flex:1;min-width:160px">
+          <label>ZEV</label>
+          <select id="budzet-filter-zev" onchange="renderAdminBudzet()"></select>
+        </div>
+        <div class="field" style="margin:0">
+          <label>Godina</label>
+          <select id="budzet-filter-godina" onchange="renderAdminBudzet()"></select>
+        </div>
+      </div>
+      <div id="admin-budzet-lista"></div>
+    </div>
+
+    <!-- ══ KONTAKTI (admin) ══ -->
+    <div class="page" id="page-admin-kontakti">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Kontakti</div>
+          <div class="page-sub">Servisi, komunalne službe i hitni kontakti</div>
+        </div>
+        <button class="btn btn-primary" onclick="openNoviKontakt()">
+          <i class="ti ti-plus"></i> Novi kontakt
+        </button>
+      </div>
+      <div id="admin-kontakti-lista" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px"></div>
+    </div>
+
+    <!-- ══ KONTAKTI (vlasnik) ══ -->
+    <div class="page" id="page-kontakti">
+      <div class="page-header">
+        <div class="page-title">Kontakti</div>
+        <div class="page-sub">Servisi, komunalne službe i hitni kontakti vaše zajednice</div>
+      </div>
+      <div id="kontakti-lista" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px"></div>
+    </div>
+
   </div><!-- /content -->
 </div><!-- /app-screen -->
 
@@ -1278,6 +1334,7 @@ body.admin .admin-only-block { display: block; }
       <label>Status</label>
       <select id="odgovor-status">
         <option value="U_TOKU">U toku</option>
+        <option value="ZAKAZANO">Zakazan termin</option>
         <option value="RIJESENO">Riješeno</option>
       </select>
     </div>
@@ -1656,6 +1713,83 @@ body.admin .admin-only-block { display: block; }
   </div>
 </div>
 
+<!-- Modal: Novi/uredi budžet plan -->
+<div class="modal-overlay" id="modal-novi-budzet">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title" id="budzet-modal-naslov">Novi plan budžeta</div>
+    <div class="field-row">
+      <div class="field">
+        <label>ZEV</label>
+        <select id="budzet-zev"></select>
+      </div>
+      <div class="field">
+        <label>Godina</label>
+        <select id="budzet-godina"></select>
+      </div>
+    </div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--green);margin:14px 0 10px">Planirani prihodi (KM)</div>
+    <div class="field-row">
+      <div class="field"><label>Zajednička potrošnja</label><input type="number" id="budzet-prih-potrosnja" placeholder="0.00" min="0" step="0.01"></div>
+      <div class="field"><label>Investiciono održavanje</label><input type="number" id="budzet-prih-investicije" placeholder="0.00" min="0" step="0.01"></div>
+    </div>
+    <div class="field"><label>Ostali prihodi</label><input type="number" id="budzet-prih-ostalo" placeholder="0.00" min="0" step="0.01"></div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--red);margin:14px 0 10px">Planirani rashodi (KM)</div>
+    <div class="field-row">
+      <div class="field"><label>Tekuće održavanje</label><input type="number" id="budzet-rash-odrzavanje" placeholder="0.00" min="0" step="0.01"></div>
+      <div class="field"><label>Čišćenje i higijena</label><input type="number" id="budzet-rash-ciscenje" placeholder="0.00" min="0" step="0.01"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Energija (struja/voda)</label><input type="number" id="budzet-rash-energija" placeholder="0.00" min="0" step="0.01"></div>
+      <div class="field"><label>Investicije</label><input type="number" id="budzet-rash-investicije" placeholder="0.00" min="0" step="0.01"></div>
+    </div>
+    <div class="field"><label>Ostali rashodi</label><input type="number" id="budzet-rash-ostalo" placeholder="0.00" min="0" step="0.01"></div>
+    <div class="field"><label>Napomena</label><textarea id="budzet-napomena" rows="2" placeholder="Opciono..."></textarea></div>
+    <input type="hidden" id="budzet-edit-id">
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-novi-budzet')">Odustani</button>
+      <button class="btn btn-primary" onclick="snimiPlanBudzeta()"><i class="ti ti-check"></i> Snimi plan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Novi/uredi kontakt -->
+<div class="modal-overlay" id="modal-novi-kontakt">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-title" id="kontakt-modal-naslov">Novi kontakt</div>
+    <div class="field"><label>Naziv</label><input type="text" id="kontakt-naziv" placeholder="npr. Hitna pomoć, Elektrodistribucija..."></div>
+    <div class="field-row">
+      <div class="field">
+        <label>Kategorija</label>
+        <select id="kontakt-kategorija">
+          <option value="ti-ambulance">🚑 Hitne službe</option>
+          <option value="ti-bolt">⚡ Elektrika</option>
+          <option value="ti-droplet">💧 Vodovod</option>
+          <option value="ti-flame">🔥 Gas/Grijanje</option>
+          <option value="ti-tool">🔧 Servis/Popravke</option>
+          <option value="ti-building">🏢 Komunalne službe</option>
+          <option value="ti-shield">🛡 Sigurnost</option>
+          <option value="ti-leaf">♻ Otpad/Okoliš</option>
+          <option value="ti-phone">📞 Ostalo</option>
+        </select>
+      </div>
+      <div class="field"><label>Telefon</label><input type="tel" id="kontakt-telefon" placeholder="+387 ..."></div>
+    </div>
+    <div class="field"><label>Email (opciono)</label><input type="email" id="kontakt-email" placeholder="kontakt@primjer.ba"></div>
+    <div class="field"><label>Napomena (opciono)</label><input type="text" id="kontakt-napomena" placeholder="Radno vrijeme, specijalizacija..."></div>
+    <div class="field">
+      <label>Vidljivo za ZEV</label>
+      <select id="kontakt-zev">
+        <option value="">Svi ZEV-ovi</option>
+      </select>
+    </div>
+    <input type="hidden" id="kontakt-edit-id">
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-novi-kontakt')">Odustani</button>
+      <button class="btn btn-primary" onclick="snimiKontakt()"><i class="ti ti-check"></i> Snimi kontakt</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast kontejner -->
 <div class="toast-container" id="toast-container"></div>
 
@@ -1684,7 +1818,7 @@ const dbFirestore = getFirestore(fbApp);
 // (npr. ezev/zevovi, ezev/vlasnici, ezev/ankete...) — svaki dokument ima
 // polje "podaci" koje je niz/objekat identičan onome što je app ranije
 // držala samo u memoriji (window.DB.x).
-const KOLEKCIJE = ['zevovi', 'vlasnici', 'ankete', 'prijave', 'finansijskiPodaci', 'savjetnik', 'partneri', 'korisnici', 'povezaniNalozi', 'adminNalog'];
+const KOLEKCIJE = ['zevovi', 'vlasnici', 'ankete', 'prijave', 'finansijskiPodaci', 'savjetnik', 'partneri', 'korisnici', 'povezaniNalozi', 'adminNalog', 'budzet', 'kontakti'];
 
 window.__firebaseReady = false;
 window.__firebaseSaving = {};
@@ -1964,6 +2098,16 @@ DB.savjetnik = [
 DB.partneri = [
   { id: 'pt1', naziv: 'Majstor na sat', opis: '10% popusta za etažne vlasnike na sve popravke u domaćinstvu.', telefon: '+387 65 111 222', email: 'kontakt@majstornasat.ba', kategorija: 'ti-tool' },
   { id: 'pt2', naziv: 'Eko čišćenje', opis: '15% popusta na prvu uslugu generalnog čišćenja stana ili zgrade.', telefon: '+387 61 333 444', email: 'info@ekociscenje.ba', kategorija: 'ti-leaf' },
+];
+
+// Godišnji planovi budžeta
+DB.budzet = [];
+
+// Kontakti (servisi, hitne službe itd.)
+DB.kontakti = [
+  { id: 'kt1', naziv: 'Hitna pomoć', kategorija: 'ti-ambulance', telefon: '124', email: '', napomena: 'Dostupno 24/7', zev: '' },
+  { id: 'kt2', naziv: 'Vatrogasci', kategorija: 'ti-flame', telefon: '123', email: '', napomena: 'Dostupno 24/7', zev: '' },
+  { id: 'kt3', naziv: 'Policija', kategorija: 'ti-shield', telefon: '122', email: '', napomena: 'Dostupno 24/7', zev: '' },
 ];
 
 window.DB = DB;
@@ -2793,6 +2937,8 @@ function doLogin(user) {
     document.getElementById('nav-admin-prijave').style.display = 'inline-flex';
     document.getElementById('nav-admin-savjetnik').style.display = 'inline-flex';
     document.getElementById('nav-admin-komsija').style.display = 'inline-flex';
+    document.getElementById('nav-admin-budzet').style.display = 'inline-flex';
+    document.getElementById('nav-admin-kontakti').style.display = 'inline-flex';
     document.querySelectorAll('.vlasnik-only').forEach(el => el.style.display = 'none');
     popuniZevSelecte();
   } else {
@@ -2800,6 +2946,7 @@ function doLogin(user) {
     rb.className = 'role-badge role-vlasnik';
     document.getElementById('btn-poveci-nalog').style.display = 'inline-flex';
     document.getElementById('nav-savjetnik').style.display = 'inline-flex';
+    document.getElementById('nav-kontakti').style.display = 'inline-flex';
     // Postavi ZEV-ove — ako Firebase još nije učitao podatke, sačekaj
     if (window.__firebaseReady) {
       osvjeziZevoviVlasnika();
@@ -2834,6 +2981,9 @@ function odjava() {
   document.getElementById('nav-admin-prijave').style.display = 'none';
   document.getElementById('nav-admin-savjetnik').style.display = 'none';
   document.getElementById('nav-admin-komsija').style.display = 'none';
+  document.getElementById('nav-admin-budzet').style.display = 'none';
+  document.getElementById('nav-admin-kontakti').style.display = 'none';
+  document.getElementById('nav-kontakti').style.display = 'none';
   document.querySelectorAll('.vlasnik-only').forEach(el => el.style.display = 'none');
   document.getElementById('admin-user').value = '';
   document.getElementById('admin-pass').value = '';
@@ -2885,6 +3035,9 @@ function popuniMobilniMeni() {
     { id: 'admin-prijave', icon: 'ti-inbox', naziv: 'Primljene prijave', samo: 'admin' },
     { id: 'admin-savjetnik', icon: 'ti-message-chatbot', naziv: 'Savjetnik (admin)', samo: 'admin' },
     { id: 'admin-komsija', icon: 'ti-discount-2', naziv: 'Komšija+ (admin)', samo: 'admin' },
+    { id: 'admin-budzet', icon: 'ti-chart-pie', naziv: 'Budžet', samo: 'admin' },
+    { id: 'admin-kontakti', icon: 'ti-phone-call', naziv: 'Kontakti (admin)', samo: 'admin' },
+    { id: 'kontakti', icon: 'ti-phone-call', naziv: 'Kontakti', samo: 'vlasnik' },
   ].filter(s => {
     if (s.samo === 'admin') return jeAdmin;
     if (s.samo === 'vlasnik') return !jeAdmin;
@@ -2925,19 +3078,6 @@ function showPage(id) {
 }
 
 function renderPage(id) {
-  if (id === 'admin-zevovi') renderAdminZevovi();
-  if (id === 'glasanje') renderGlasanjeVlasnik();
-  if (id === 'admin-glasanje') renderAdminGlasanje();
-  if (id === 'prijave') renderPrijaveVlasnik();
-  if (id === 'admin-prijave') renderAdminPrijave();
-  if (id === 'izvjestaji') initIzvjestaji();
-  if (id === 'savjetnik') renderSavjetnik();
-  if (id === 'admin-savjetnik') initAdminSavjetnik();
-  if (id === 'komsija') renderKomsijaVlasnik();
-  if (id === 'admin-komsija') renderAdminKomsija();
-}
-
-function renderPage(id) {
   if (id === 'admin-pregled') renderAdminPregled();
   if (id === 'admin-zevovi') renderAdminZevovi();
   if (id === 'glasanje') renderGlasanjeVlasnik();
@@ -2949,6 +3089,9 @@ function renderPage(id) {
   if (id === 'admin-savjetnik') initAdminSavjetnik();
   if (id === 'komsija') renderKomsijaVlasnik();
   if (id === 'admin-komsija') renderAdminKomsija();
+  if (id === 'admin-budzet') initAdminBudzet();
+  if (id === 'admin-kontakti') renderAdminKontakti();
+  if (id === 'kontakti') renderKontaktiVlasnik();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3476,15 +3619,15 @@ function renderPrijaveVlasnik() {
 
   cont.innerHTML = prijave.map(p => `
     <div class="card">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px">
         <div>
           <div style="font-size:12px;color:var(--text3);margin-bottom:3px">${p.zevNaziv} · ${new Date(p.datum).toLocaleDateString('bs-BA')}</div>
           <div style="font-weight:600;font-size:15px;margin-bottom:4px">${p.naslov}</div>
           <p style="font-size:13px;color:var(--text2)">${p.opis}</p>
         </div>
-        ${statusChip(p.status)}
       </div>
-      ${p.slikaUrl ? `<img src="${p.slikaUrl}" alt="Slika problema" style="max-width:220px;max-height:160px;border-radius:var(--radius);border:1px solid var(--border);margin-bottom:10px;cursor:pointer;display:block" onclick="window.open(this.src,'_blank')">` : ''}
+      ${statusTracker(p.status)}
+      ${p.slikaUrl ? `<img src="${p.slikaUrl}" alt="Slika problema" style="max-width:220px;max-height:160px;border-radius:var(--radius);border:1px solid var(--border);margin-bottom:10px;cursor:pointer;display:block;margin-top:10px" onclick="window.open(this.src,'_blank')">` : ''}
       ${p.odgovor ? `
         <div style="background:var(--accent-glow);border:1px solid rgba(79,127,255,0.2);border-radius:var(--radius);padding:12px 14px;margin-top:10px">
           <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:5px">
@@ -3510,10 +3653,10 @@ function renderAdminPrijave() {
           <div style="font-weight:600;font-size:15px;margin-bottom:5px">${p.naslov}</div>
           <p style="font-size:13px;color:var(--text2);margin-bottom:8px">${p.opis}</p>
           ${p.slikaUrl ? `<img src="${p.slikaUrl}" alt="Slika problema" style="max-width:160px;max-height:120px;border-radius:var(--radius);border:1px solid var(--border);margin-bottom:8px;cursor:pointer;display:block" onclick="window.open(this.src,'_blank')">` : ''}
-          ${p.odgovor ? `<div style="font-size:12px;color:var(--text3)"><i class="ti ti-message-reply"></i> Odgovoreno: "${p.odgovor.slice(0,60)}..."</div>` : ''}
+          ${statusTracker(p.status)}
+          ${p.odgovor ? `<div style="font-size:12px;color:var(--text3);margin-top:6px"><i class="ti ti-message-reply"></i> "${p.odgovor.slice(0,60)}${p.odgovor.length>60?'...':''}"</div>` : ''}
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
-          ${statusChip(p.status)}
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
           <button class="btn btn-sm" onclick="openOdgovor('${p.id}')">
             <i class="ti ti-message"></i> ${p.odgovor ? 'Izmijeni' : 'Odgovori'}
           </button>
@@ -4467,6 +4610,324 @@ function obrisiPartnera(id) {
   toast('Partner obrisan.', 'success');
   renderAdminKomsija();
   window.spremiUFirestore('partneri');
+}
+
+// ═══════════════════════════════════════════════════════
+// BUDŽET — godišnji plan prihoda i rashoda
+// ═══════════════════════════════════════════════════════
+
+const TEKUCA_GODINA = new Date().getFullYear();
+
+function initAdminBudzet() {
+  const zevSel = document.getElementById('budzet-filter-zev');
+  if (zevSel) zevSel.innerHTML = DB.zevovi.map(z => `<option value="${z.id}">${z.naziv}</option>`).join('');
+  const godSel = document.getElementById('budzet-filter-godina');
+  if (godSel) {
+    const godine = [TEKUCA_GODINA-1, TEKUCA_GODINA, TEKUCA_GODINA+1, TEKUCA_GODINA+2];
+    godSel.innerHTML = godine.map(g => `<option value="${g}" ${g===TEKUCA_GODINA?'selected':''}>${g}.</option>`).join('');
+  }
+  renderAdminBudzet();
+}
+
+function renderAdminBudzet() {
+  const lista = document.getElementById('admin-budzet-lista');
+  if (!lista) return;
+  const zevId = document.getElementById('budzet-filter-zev')?.value;
+  const godina = parseInt(document.getElementById('budzet-filter-godina')?.value || TEKUCA_GODINA);
+  if (!zevId) { lista.innerHTML = '<div class="card" style="color:var(--text3);text-align:center;padding:30px">Odaberite ZEV.</div>'; return; }
+
+  const planovi = DB.budzet.filter(b => b.zevId === zevId && b.godina === godina);
+  if (planovi.length === 0) {
+    lista.innerHTML = `<div class="card" style="text-align:center;padding:40px;color:var(--text3)">
+      <i class="ti ti-chart-pie" style="font-size:32px;margin-bottom:10px;display:block"></i>
+      Nema unesenog plana za ${godina}. godinu.
+      <br><button class="btn btn-primary" style="margin-top:14px" onclick="openNoviBudzet()">
+        <i class="ti ti-plus"></i> Unesi plan
+      </button></div>`;
+    return;
+  }
+
+  const b = planovi[0];
+  const ukPrihodi = (b.prihPotrosnja||0)+(b.prihInvesticije||0)+(b.prihOstalo||0);
+  const ukRashodi = (b.rashOdrzavanje||0)+(b.rashCiscenje||0)+(b.rashEnergija||0)+(b.rashInvesticije||0)+(b.rashOstalo||0);
+  const razlika = ukPrihodi - ukRashodi;
+  const ostvareni = DB.finansijskiPodaci.filter(f => f.zevId === zevId && f.period.endsWith('/'+godina));
+  const ostvUplate = ostvareni.reduce((s,f) => s+(f.uplate||0), 0);
+  const ostvIsplate = ostvareni.reduce((s,f) => s+(f.isplate||0), 0);
+  const pctPrih = ukPrihodi > 0 ? Math.min(100, Math.round(ostvUplate/ukPrihodi*100)) : 0;
+  const pctRash = ukRashodi > 0 ? Math.min(100, Math.round(ostvIsplate/ukRashodi*100)) : 0;
+
+  const stavkaPrihoda = (naziv, val) => val > 0 ? `
+    <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid var(--border)">
+      <span style="color:var(--text2)">${naziv}</span><span>${Number(val).toFixed(2)} KM</span>
+    </div>` : '';
+
+  lista.innerHTML = `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-weight:700;font-size:16px">${ZEVOVI[zevId]||zevId} — Plan za ${godina}. godinu</div>
+        ${b.napomena?`<div style="font-size:12px;color:var(--text2);margin-top:4px">${b.napomena}</div>`:''}
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-sm" onclick="urediPlanBudzeta('${b.id}')"><i class="ti ti-edit"></i> Uredi</button>
+        <button class="btn btn-sm btn-danger" onclick="obrisiPlanBudzeta('${b.id}')"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>
+    <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px">
+      <div class="stat" style="padding:10px 14px"><div class="stat-label">Plan prihoda</div><div class="stat-val" style="color:var(--green)">${ukPrihodi.toFixed(2)} KM</div></div>
+      <div class="stat" style="padding:10px 14px"><div class="stat-label">Plan rashoda</div><div class="stat-val" style="color:var(--red)">${ukRashodi.toFixed(2)} KM</div></div>
+      <div class="stat" style="padding:10px 14px"><div class="stat-label">Planirani saldo</div><div class="stat-val" style="color:${razlika>=0?'var(--green)':'var(--red)'}">${razlika>=0?'+':''}${razlika.toFixed(2)} KM</div></div>
+      <div class="stat" style="padding:10px 14px"><div class="stat-label">Ostvareni prihodi</div><div class="stat-val">${ostvUplate.toFixed(2)} KM<span style="font-size:11px;color:var(--text3)"> (${pctPrih}%)</span></div></div>
+      <div class="stat" style="padding:10px 14px"><div class="stat-label">Ostvareni rashodi</div><div class="stat-val">${ostvIsplate.toFixed(2)} KM<span style="font-size:11px;color:var(--text3)"> (${pctRash}%)</span></div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+      <div>
+        <div style="font-size:11px;color:var(--green);font-weight:700;margin-bottom:8px;text-transform:uppercase">Prihodi</div>
+        ${stavkaPrihoda('Zajednička potrošnja', b.prihPotrosnja)}
+        ${stavkaPrihoda('Investiciono održavanje', b.prihInvesticije)}
+        ${stavkaPrihoda('Ostali prihodi', b.prihOstalo)}
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--red);font-weight:700;margin-bottom:8px;text-transform:uppercase">Rashodi</div>
+        ${stavkaPrihoda('Tekuće održavanje', b.rashOdrzavanje)}
+        ${stavkaPrihoda('Čišćenje i higijena', b.rashCiscenje)}
+        ${stavkaPrihoda('Energija', b.rashEnergija)}
+        ${stavkaPrihoda('Investicije', b.rashInvesticije)}
+        ${stavkaPrihoda('Ostali rashodi', b.rashOstalo)}
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:5px">Realizacija prihoda (${pctPrih}%)</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${pctPrih}%;background:var(--green)"></div></div>
+    <div style="font-size:11px;color:var(--text3);margin:8px 0 5px">Realizacija rashoda (${pctRash}%)</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${pctRash}%;background:var(--red)"></div></div>
+  </div>`;
+}
+
+function openNoviBudzet() {
+  const zevId = document.getElementById('budzet-filter-zev')?.value;
+  const godina = parseInt(document.getElementById('budzet-filter-godina')?.value || TEKUCA_GODINA);
+  const zevSel = document.getElementById('budzet-zev');
+  zevSel.innerHTML = DB.zevovi.map(z => `<option value="${z.id}" ${z.id===zevId?'selected':''}>${z.naziv}</option>`).join('');
+  const godSel = document.getElementById('budzet-godina');
+  const godine = [TEKUCA_GODINA-1, TEKUCA_GODINA, TEKUCA_GODINA+1, TEKUCA_GODINA+2];
+  godSel.innerHTML = godine.map(g => `<option value="${g}" ${g===godina?'selected':''}>${g}.</option>`).join('');
+  document.getElementById('budzet-modal-naslov').textContent = 'Novi plan budžeta';
+  ['budzet-prih-potrosnja','budzet-prih-investicije','budzet-prih-ostalo',
+   'budzet-rash-odrzavanje','budzet-rash-ciscenje','budzet-rash-energija',
+   'budzet-rash-investicije','budzet-rash-ostalo','budzet-napomena','budzet-edit-id']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+  openModal('modal-novi-budzet');
+}
+
+function urediPlanBudzeta(id) {
+  const b = DB.budzet.find(b => b.id === id);
+  if (!b) return;
+  const zevSel = document.getElementById('budzet-zev');
+  zevSel.innerHTML = DB.zevovi.map(z => `<option value="${z.id}" ${z.id===b.zevId?'selected':''}>${z.naziv}</option>`).join('');
+  const godSel = document.getElementById('budzet-godina');
+  const godine = [TEKUCA_GODINA-1, TEKUCA_GODINA, TEKUCA_GODINA+1, TEKUCA_GODINA+2];
+  godSel.innerHTML = godine.map(g => `<option value="${g}" ${g===b.godina?'selected':''}>${g}.</option>`).join('');
+  document.getElementById('budzet-modal-naslov').textContent = 'Uredi plan budžeta';
+  document.getElementById('budzet-prih-potrosnja').value = b.prihPotrosnja||'';
+  document.getElementById('budzet-prih-investicije').value = b.prihInvesticije||'';
+  document.getElementById('budzet-prih-ostalo').value = b.prihOstalo||'';
+  document.getElementById('budzet-rash-odrzavanje').value = b.rashOdrzavanje||'';
+  document.getElementById('budzet-rash-ciscenje').value = b.rashCiscenje||'';
+  document.getElementById('budzet-rash-energija').value = b.rashEnergija||'';
+  document.getElementById('budzet-rash-investicije').value = b.rashInvesticije||'';
+  document.getElementById('budzet-rash-ostalo').value = b.rashOstalo||'';
+  document.getElementById('budzet-napomena').value = b.napomena||'';
+  document.getElementById('budzet-edit-id').value = id;
+  openModal('modal-novi-budzet');
+}
+
+function snimiPlanBudzeta() {
+  const zevId = document.getElementById('budzet-zev').value;
+  const godina = parseInt(document.getElementById('budzet-godina').value);
+  const editId = document.getElementById('budzet-edit-id').value;
+  if (!zevId) { toast('Odaberite ZEV.', 'error'); return; }
+  const podaci = {
+    zevId, godina,
+    prihPotrosnja: parseFloat(document.getElementById('budzet-prih-potrosnja').value)||0,
+    prihInvesticije: parseFloat(document.getElementById('budzet-prih-investicije').value)||0,
+    prihOstalo: parseFloat(document.getElementById('budzet-prih-ostalo').value)||0,
+    rashOdrzavanje: parseFloat(document.getElementById('budzet-rash-odrzavanje').value)||0,
+    rashCiscenje: parseFloat(document.getElementById('budzet-rash-ciscenje').value)||0,
+    rashEnergija: parseFloat(document.getElementById('budzet-rash-energija').value)||0,
+    rashInvesticije: parseFloat(document.getElementById('budzet-rash-investicije').value)||0,
+    rashOstalo: parseFloat(document.getElementById('budzet-rash-ostalo').value)||0,
+    napomena: document.getElementById('budzet-napomena').value.trim(),
+  };
+  if (editId) {
+    const b = DB.budzet.find(b => b.id === editId);
+    if (b) Object.assign(b, podaci);
+    toast('Plan ažuriran!', 'success');
+  } else {
+    if (DB.budzet.find(b => b.zevId===zevId && b.godina===godina)) {
+      toast('Plan za ovaj ZEV i godinu već postoji. Uredi postojeći.', 'error'); return;
+    }
+    DB.budzet.push({ id: 'b'+Date.now(), ...podaci });
+    toast('Plan uspješno kreiran!', 'success');
+  }
+  closeModal('modal-novi-budzet');
+  renderAdminBudzet();
+  window.spremiUFirestore('budzet');
+}
+
+function obrisiPlanBudzeta(id) {
+  if (!confirm('Obrisati ovaj plan budžeta?')) return;
+  DB.budzet = DB.budzet.filter(b => b.id !== id);
+  toast('Plan obrisan.', 'success');
+  renderAdminBudzet();
+  window.spremiUFirestore('budzet');
+}
+
+// ═══════════════════════════════════════════════════════
+// KONTAKTI — servisi, hitne službe, komunalne službe
+// ═══════════════════════════════════════════════════════
+
+const KONTAKT_KATEGORIJE = {
+  'ti-ambulance': '🚑 Hitne službe', 'ti-bolt': '⚡ Elektrika',
+  'ti-droplet': '💧 Vodovod', 'ti-flame': '🔥 Gas/Grijanje',
+  'ti-tool': '🔧 Servis/Popravke', 'ti-building': '🏢 Komunalne službe',
+  'ti-shield': '🛡 Sigurnost', 'ti-leaf': '♻ Otpad/Okoliš', 'ti-phone': '📞 Ostalo',
+};
+
+function renderKontaktKartica(k, adminMode) {
+  return `<div class="card">
+    <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">
+      <div style="width:40px;height:40px;border-radius:10px;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="ti ${k.kategorija}" style="font-size:18px;color:var(--accent)"></i>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:14px;margin-bottom:2px">${k.naziv}</div>
+        <div style="font-size:11px;color:var(--text3)">${KONTAKT_KATEGORIJE[k.kategorija]||'Ostalo'}</div>
+        ${k.zev?`<div style="font-size:11px;color:var(--accent);margin-top:2px"><i class="ti ti-building-community"></i> ${ZEVOVI[k.zev]||k.zev}</div>`:''}
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:5px;font-size:13px">
+      ${k.telefon?`<a href="tel:${k.telefon}" style="display:flex;align-items:center;gap:8px;color:var(--text);text-decoration:none"><i class="ti ti-phone" style="color:var(--green)"></i> ${k.telefon}</a>`:''}
+      ${k.email?`<a href="mailto:${k.email}" style="display:flex;align-items:center;gap:8px;color:var(--text);text-decoration:none"><i class="ti ti-mail" style="color:var(--accent)"></i> ${k.email}</a>`:''}
+      ${k.napomena?`<div style="font-size:12px;color:var(--text3);margin-top:4px"><i class="ti ti-info-circle"></i> ${k.napomena}</div>`:''}
+    </div>
+    ${adminMode?`<div style="display:flex;gap:6px;margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
+      <button class="btn btn-sm" onclick="urediKontakt('${k.id}')"><i class="ti ti-edit"></i> Uredi</button>
+      <button class="btn btn-sm btn-danger" onclick="obrisiKontakt('${k.id}')"><i class="ti ti-trash"></i></button>
+    </div>`:''}
+  </div>`;
+}
+
+function renderAdminKontakti() {
+  const lista = document.getElementById('admin-kontakti-lista');
+  if (!lista) return;
+  lista.innerHTML = DB.kontakti.length === 0
+    ? '<div class="card" style="text-align:center;padding:40px;color:var(--text3);grid-column:1/-1"><i class="ti ti-phone-call" style="font-size:32px;display:block;margin-bottom:10px"></i>Nema unesenih kontakata.</div>'
+    : DB.kontakti.map(k => renderKontaktKartica(k, true)).join('');
+}
+
+function renderKontaktiVlasnik() {
+  const lista = document.getElementById('kontakti-lista');
+  if (!lista) return;
+  const aktivniZev = currentUser?.aktivniZev;
+  const kontakti = DB.kontakti.filter(k => !k.zev || k.zev === aktivniZev);
+  lista.innerHTML = kontakti.length === 0
+    ? '<div class="card" style="text-align:center;padding:40px;color:var(--text3);grid-column:1/-1"><i class="ti ti-phone-call" style="font-size:32px;display:block;margin-bottom:10px"></i>Nema unesenih kontakata za vašu zajednicu.</div>'
+    : kontakti.map(k => renderKontaktKartica(k, false)).join('');
+}
+
+function openNoviKontakt() {
+  document.getElementById('kontakt-modal-naslov').textContent = 'Novi kontakt';
+  ['kontakt-naziv','kontakt-telefon','kontakt-email','kontakt-napomena','kontakt-edit-id']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('kontakt-kategorija').value = 'ti-phone';
+  const zevSel = document.getElementById('kontakt-zev');
+  zevSel.innerHTML = '<option value="">Svi ZEV-ovi</option>' +
+    DB.zevovi.map(z => `<option value="${z.id}">${z.naziv}</option>`).join('');
+  openModal('modal-novi-kontakt');
+}
+
+function urediKontakt(id) {
+  const k = DB.kontakti.find(k => k.id === id);
+  if (!k) return;
+  document.getElementById('kontakt-modal-naslov').textContent = 'Uredi kontakt';
+  document.getElementById('kontakt-naziv').value = k.naziv;
+  document.getElementById('kontakt-kategorija').value = k.kategorija;
+  document.getElementById('kontakt-telefon').value = k.telefon||'';
+  document.getElementById('kontakt-email').value = k.email||'';
+  document.getElementById('kontakt-napomena').value = k.napomena||'';
+  document.getElementById('kontakt-edit-id').value = id;
+  const zevSel = document.getElementById('kontakt-zev');
+  zevSel.innerHTML = '<option value="">Svi ZEV-ovi</option>' +
+    DB.zevovi.map(z => `<option value="${z.id}" ${z.id===k.zev?'selected':''}>${z.naziv}</option>`).join('');
+  openModal('modal-novi-kontakt');
+}
+
+function snimiKontakt() {
+  const naziv = document.getElementById('kontakt-naziv').value.trim();
+  if (!naziv) { toast('Unesite naziv kontakta.', 'error'); return; }
+  const editId = document.getElementById('kontakt-edit-id').value;
+  const podaci = {
+    naziv,
+    kategorija: document.getElementById('kontakt-kategorija').value,
+    telefon: document.getElementById('kontakt-telefon').value.trim(),
+    email: document.getElementById('kontakt-email').value.trim(),
+    napomena: document.getElementById('kontakt-napomena').value.trim(),
+    zev: document.getElementById('kontakt-zev').value,
+  };
+  if (editId) {
+    const k = DB.kontakti.find(k => k.id === editId);
+    if (k) Object.assign(k, podaci);
+    toast('Kontakt ažuriran!', 'success');
+  } else {
+    DB.kontakti.push({ id: 'kt'+Date.now(), ...podaci });
+    toast('Kontakt dodan!', 'success');
+  }
+  closeModal('modal-novi-kontakt');
+  renderAdminKontakti();
+  window.spremiUFirestore('kontakti');
+}
+
+function obrisiKontakt(id) {
+  if (!confirm('Obrisati ovaj kontakt?')) return;
+  DB.kontakti = DB.kontakti.filter(k => k.id !== id);
+  toast('Kontakt obrisan.', 'success');
+  renderAdminKontakti();
+  window.spremiUFirestore('kontakti');
+}
+
+// ═══════════════════════════════════════════════════════
+// STATUS INTERVENCIJE — korak-po-korak praćenje prijava
+// ═══════════════════════════════════════════════════════
+
+const STATUSI_INTERVENCIJE = [
+  { id: 'NOVA',     naziv: 'Nova',           ikona: 'ti-file-text',     boja: 'var(--text3)' },
+  { id: 'U_TOKU',   naziv: 'U toku',         ikona: 'ti-loader',        boja: 'var(--accent)' },
+  { id: 'ZAKAZANO', naziv: 'Zakazan termin', ikona: 'ti-calendar-event', boja: '#f0c060' },
+  { id: 'RIJESENO', naziv: 'Riješeno',       ikona: 'ti-circle-check',  boja: 'var(--green)' },
+];
+
+function statusTracker(status) {
+  const aktivniIdx = STATUSI_INTERVENCIJE.findIndex(s => s.id === status);
+  return `<div style="display:flex;align-items:flex-start;margin:14px 0 4px">
+    ${STATUSI_INTERVENCIJE.map((s, i) => {
+      const prosao = i <= aktivniIdx;
+      return `<div style="display:flex;align-items:center;flex:1">
+        <div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:0">
+          <div style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+            background:${prosao ? s.boja : 'var(--bg4)'};color:${prosao ? '#fff' : 'var(--text3)'};
+            font-size:13px;border:2px solid ${prosao ? s.boja : 'var(--border)'}">
+            <i class="ti ${s.ikona}"></i>
+          </div>
+          <div style="font-size:9px;color:${prosao ? s.boja : 'var(--text3)'};margin-top:4px;text-align:center;max-width:56px;line-height:1.3;white-space:normal">
+            ${s.naziv}
+          </div>
+        </div>
+        ${i < STATUSI_INTERVENCIJE.length - 1
+          ? `<div style="height:2px;flex:1;background:${i < aktivniIdx ? STATUSI_INTERVENCIJE[i].boja : 'var(--border)'};margin-bottom:18px;min-width:8px"></div>`
+          : ''}
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
 // ═══════════════════════════════════════════════════════

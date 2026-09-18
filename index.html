@@ -830,8 +830,14 @@ body.admin .admin-only-block { display: block; }
       <button class="nav-btn admin-only" onclick="showPage('admin-kontakti')" id="nav-admin-kontakti" style="display:none">
         <i class="ti ti-phone-call"></i> Kontakti
       </button>
+      <button class="nav-btn admin-only" onclick="showPage('admin-dokumenti')" id="nav-admin-dokumenti" style="display:none">
+        <i class="ti ti-files"></i> Dokumenti
+      </button>
       <button class="nav-btn vlasnik-only" onclick="showPage('kontakti')" id="nav-kontakti" style="display:none">
         <i class="ti ti-phone-call"></i> Kontakti
+      </button>
+      <button class="nav-btn vlasnik-only" onclick="showPage('dokumenti')" id="nav-dokumenti" style="display:none">
+        <i class="ti ti-files"></i> Dokumenti
       </button>
     </nav>
 
@@ -1216,6 +1222,37 @@ body.admin .admin-only-block { display: block; }
         <div class="page-sub">Servisi, komunalne službe i hitni kontakti vaše zajednice</div>
       </div>
       <div id="kontakti-lista" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px"></div>
+    </div>
+
+    <!-- ══ DOKUMENTI (admin) ══ -->
+    <div class="page" id="page-admin-dokumenti">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Dokumentacija</div>
+          <div class="page-sub">Upravljanje dokumentima po zajednicama</div>
+        </div>
+        <button class="btn btn-primary" onclick="openNoviDokument()">
+          <i class="ti ti-plus"></i> Novi dokument
+        </button>
+      </div>
+      <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end">
+        <div class="field" style="margin:0;flex:1;min-width:160px">
+          <label>Filtriraj po ZEV-u</label>
+          <select id="dokument-filter-zev" onchange="renderAdminDokumenti()">
+            <option value="">Svi ZEV-ovi</option>
+          </select>
+        </div>
+      </div>
+      <div id="admin-dokumenti-lista"></div>
+    </div>
+
+    <!-- ══ DOKUMENTI (vlasnik) ══ -->
+    <div class="page" id="page-dokumenti">
+      <div class="page-header">
+        <div class="page-title">Dokumentacija</div>
+        <div class="page-sub">Dokumenti vaše zajednice</div>
+      </div>
+      <div id="dokumenti-lista"></div>
     </div>
 
   </div><!-- /content -->
@@ -1790,6 +1827,56 @@ body.admin .admin-only-block { display: block; }
   </div>
 </div>
 
+<!-- Modal: Novi/uredi dokument -->
+<div class="modal-overlay" id="modal-novi-dokument">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-title" id="dokument-modal-naslov">Novi dokument</div>
+    <div class="field">
+      <label>Naziv dokumenta</label>
+      <input type="text" id="dokument-naziv" placeholder="npr. Zapisnik skupštine 2025, Pravilnik...">
+    </div>
+    <div class="field">
+      <label>Kategorija</label>
+      <select id="dokument-kategorija">
+        <option value="ti-file-text">📄 Zapisnik</option>
+        <option value="ti-file-certificate">📋 Pravilnik / Odluka</option>
+        <option value="ti-file-invoice">🧾 Ugovor</option>
+        <option value="ti-chart-bar">📊 Finansijski izvještaj</option>
+        <option value="ti-tool">🔧 Tehnička dokumentacija</option>
+        <option value="ti-file">📁 Ostalo</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>ZEV</label>
+      <select id="dokument-zev">
+        <option value="">Svi ZEV-ovi</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Google Drive link</label>
+      <input type="url" id="dokument-link" placeholder="https://drive.google.com/...">
+      <div style="font-size:11px;color:var(--text3);margin-top:4px">
+        <i class="ti ti-info-circle"></i> Dokument mora biti podijeljen (Share) u Google Drive-u
+      </div>
+    </div>
+    <div class="field">
+      <label>Opis (opciono)</label>
+      <input type="text" id="dokument-opis" placeholder="Kratki opis sadržaja...">
+    </div>
+    <div class="field">
+      <label>Datum dokumenta (opciono)</label>
+      <input type="date" id="dokument-datum">
+    </div>
+    <input type="hidden" id="dokument-edit-id">
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-novi-dokument')">Odustani</button>
+      <button class="btn btn-primary" onclick="snimiDokument()">
+        <i class="ti ti-check"></i> Snimi dokument
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast kontejner -->
 <div class="toast-container" id="toast-container"></div>
 
@@ -1818,7 +1905,7 @@ const dbFirestore = getFirestore(fbApp);
 // (npr. ezev/zevovi, ezev/vlasnici, ezev/ankete...) — svaki dokument ima
 // polje "podaci" koje je niz/objekat identičan onome što je app ranije
 // držala samo u memoriji (window.DB.x).
-const KOLEKCIJE = ['zevovi', 'vlasnici', 'ankete', 'prijave', 'finansijskiPodaci', 'savjetnik', 'partneri', 'korisnici', 'povezaniNalozi', 'adminNalog', 'budzet', 'kontakti'];
+const KOLEKCIJE = ['zevovi', 'vlasnici', 'ankete', 'prijave', 'finansijskiPodaci', 'savjetnik', 'partneri', 'korisnici', 'povezaniNalozi', 'adminNalog', 'budzet', 'kontakti', 'dokumenti'];
 
 window.__firebaseReady = false;
 window.__firebaseSaving = {};
@@ -2109,6 +2196,9 @@ DB.kontakti = [
   { id: 'kt2', naziv: 'Vatrogasci', kategorija: 'ti-flame', telefon: '123', email: '', napomena: 'Dostupno 24/7', zev: '' },
   { id: 'kt3', naziv: 'Policija', kategorija: 'ti-shield', telefon: '122', email: '', napomena: 'Dostupno 24/7', zev: '' },
 ];
+
+// Dokumentacija po ZEV-ovima
+DB.dokumenti = [];
 
 window.DB = DB;
 
@@ -2939,6 +3029,7 @@ function doLogin(user) {
     document.getElementById('nav-admin-komsija').style.display = 'inline-flex';
     document.getElementById('nav-admin-budzet').style.display = 'inline-flex';
     document.getElementById('nav-admin-kontakti').style.display = 'inline-flex';
+    document.getElementById('nav-admin-dokumenti').style.display = 'inline-flex';
     document.querySelectorAll('.vlasnik-only').forEach(el => el.style.display = 'none');
     popuniZevSelecte();
   } else {
@@ -2947,6 +3038,7 @@ function doLogin(user) {
     document.getElementById('btn-poveci-nalog').style.display = 'inline-flex';
     document.getElementById('nav-savjetnik').style.display = 'inline-flex';
     document.getElementById('nav-kontakti').style.display = 'inline-flex';
+    document.getElementById('nav-dokumenti').style.display = 'inline-flex';
     // Postavi ZEV-ove — ako Firebase još nije učitao podatke, sačekaj
     if (window.__firebaseReady) {
       osvjeziZevoviVlasnika();
@@ -2983,7 +3075,9 @@ function odjava() {
   document.getElementById('nav-admin-komsija').style.display = 'none';
   document.getElementById('nav-admin-budzet').style.display = 'none';
   document.getElementById('nav-admin-kontakti').style.display = 'none';
+  document.getElementById('nav-admin-dokumenti').style.display = 'none';
   document.getElementById('nav-kontakti').style.display = 'none';
+  document.getElementById('nav-dokumenti').style.display = 'none';
   document.querySelectorAll('.vlasnik-only').forEach(el => el.style.display = 'none');
   document.getElementById('admin-user').value = '';
   document.getElementById('admin-pass').value = '';
@@ -3037,7 +3131,9 @@ function popuniMobilniMeni() {
     { id: 'admin-komsija', icon: 'ti-discount-2', naziv: 'Komšija+ (admin)', samo: 'admin' },
     { id: 'admin-budzet', icon: 'ti-chart-pie', naziv: 'Budžet', samo: 'admin' },
     { id: 'admin-kontakti', icon: 'ti-phone-call', naziv: 'Kontakti (admin)', samo: 'admin' },
+    { id: 'admin-dokumenti', icon: 'ti-files', naziv: 'Dokumenti (admin)', samo: 'admin' },
     { id: 'kontakti', icon: 'ti-phone-call', naziv: 'Kontakti', samo: 'vlasnik' },
+    { id: 'dokumenti', icon: 'ti-files', naziv: 'Dokumenti', samo: 'vlasnik' },
   ].filter(s => {
     if (s.samo === 'admin') return jeAdmin;
     if (s.samo === 'vlasnik') return !jeAdmin;
@@ -3092,6 +3188,8 @@ function renderPage(id) {
   if (id === 'admin-budzet') initAdminBudzet();
   if (id === 'admin-kontakti') renderAdminKontakti();
   if (id === 'kontakti') renderKontaktiVlasnik();
+  if (id === 'admin-dokumenti') initAdminDokumenti();
+  if (id === 'dokumenti') renderDokumentiVlasnik();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -4893,6 +4991,178 @@ function obrisiKontakt(id) {
   toast('Kontakt obrisan.', 'success');
   renderAdminKontakti();
   window.spremiUFirestore('kontakti');
+}
+
+// ═══════════════════════════════════════════════════════
+// DOKUMENTACIJA — Google Drive linkovi po ZEV-ovima
+// ═══════════════════════════════════════════════════════
+
+const DOKUMENT_KATEGORIJE = {
+  'ti-file-text': 'Zapisnik',
+  'ti-file-certificate': 'Pravilnik / Odluka',
+  'ti-file-invoice': 'Ugovor',
+  'ti-chart-bar': 'Finansijski izvještaj',
+  'ti-tool': 'Tehnička dokumentacija',
+  'ti-file': 'Ostalo',
+};
+
+function initAdminDokumenti() {
+  // Popuni filter select
+  const sel = document.getElementById('dokument-filter-zev');
+  if (sel) {
+    sel.innerHTML = '<option value="">Svi ZEV-ovi</option>' +
+      DB.zevovi.map(z => `<option value="${z.id}">${z.naziv}</option>`).join('');
+  }
+  renderAdminDokumenti();
+}
+
+function renderAdminDokumenti() {
+  const lista = document.getElementById('admin-dokumenti-lista');
+  if (!lista) return;
+  const filterZev = document.getElementById('dokument-filter-zev')?.value || '';
+  const dokumenti = filterZev
+    ? DB.dokumenti.filter(d => d.zev === filterZev || d.zev === '')
+    : DB.dokumenti;
+
+  if (dokumenti.length === 0) {
+    lista.innerHTML = `<div class="card" style="text-align:center;padding:40px;color:var(--text3)">
+      <i class="ti ti-files" style="font-size:32px;display:block;margin-bottom:10px"></i>
+      Nema unesenih dokumenata.
+      <br><button class="btn btn-primary" style="margin-top:14px" onclick="openNoviDokument()">
+        <i class="ti ti-plus"></i> Dodaj dokument
+      </button>
+    </div>`;
+    return;
+  }
+
+  lista.innerHTML = dokumenti.map(d => renderDokumentKartica(d, true)).join('');
+}
+
+function renderDokumentiVlasnik() {
+  const lista = document.getElementById('dokumenti-lista');
+  if (!lista) return;
+  const aktivniZev = currentUser?.aktivniZev;
+  const dokumenti = DB.dokumenti.filter(d => !d.zev || d.zev === aktivniZev);
+
+  if (dokumenti.length === 0) {
+    lista.innerHTML = `<div class="card" style="text-align:center;padding:40px;color:var(--text3)">
+      <i class="ti ti-files" style="font-size:32px;display:block;margin-bottom:10px"></i>
+      Nema dostupnih dokumenata za vašu zajednicu.
+    </div>`;
+    return;
+  }
+
+  // Grupiši po kategoriji
+  const grupe = {};
+  dokumenti.forEach(d => {
+    const kat = DOKUMENT_KATEGORIJE[d.kategorija] || 'Ostalo';
+    if (!grupe[kat]) grupe[kat] = [];
+    grupe[kat].push(d);
+  });
+
+  lista.innerHTML = Object.entries(grupe).map(([kat, docs]) => `
+    <div style="margin-bottom:20px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);margin-bottom:10px">${kat}</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${docs.map(d => renderDokumentKartica(d, false)).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function renderDokumentKartica(d, adminMode) {
+  const datum = d.datum ? new Date(d.datum).toLocaleDateString('bs-BA') : '';
+  const zevNaziv = d.zev ? (ZEVOVI[d.zev] || d.zev) : 'Svi ZEV-ovi';
+  return `<div class="card" style="padding:14px 16px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:40px;height:40px;border-radius:10px;background:var(--accent-glow);
+        display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="ti ${d.kategorija}" style="font-size:18px;color:var(--accent)"></i>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:14px;margin-bottom:2px">${d.naziv}</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          ${d.opis ? `<span style="font-size:12px;color:var(--text2)">${d.opis}</span>` : ''}
+          ${datum ? `<span style="font-size:11px;color:var(--text3)"><i class="ti ti-calendar"></i> ${datum}</span>` : ''}
+          ${adminMode ? `<span style="font-size:11px;color:var(--text3)"><i class="ti ti-building-community"></i> ${zevNaziv}</span>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+        <a href="${d.link}" target="_blank" rel="noopener" class="btn btn-sm btn-primary"
+          style="text-decoration:none">
+          <i class="ti ti-external-link"></i> Otvori
+        </a>
+        ${adminMode ? `
+          <button class="btn btn-sm" onclick="urediDokument('${d.id}')"><i class="ti ti-edit"></i></button>
+          <button class="btn btn-sm btn-danger" onclick="obrisiDokument('${d.id}')"><i class="ti ti-trash"></i></button>
+        ` : ''}
+      </div>
+    </div>
+  </div>`;
+}
+
+function openNoviDokument() {
+  document.getElementById('dokument-modal-naslov').textContent = 'Novi dokument';
+  ['dokument-naziv','dokument-link','dokument-opis','dokument-datum','dokument-edit-id']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  document.getElementById('dokument-kategorija').value = 'ti-file-text';
+  const zevSel = document.getElementById('dokument-zev');
+  zevSel.innerHTML = '<option value="">Svi ZEV-ovi</option>' +
+    DB.zevovi.map(z => `<option value="${z.id}">${z.naziv}</option>`).join('');
+  openModal('modal-novi-dokument');
+}
+
+function urediDokument(id) {
+  const d = DB.dokumenti.find(d => d.id === id);
+  if (!d) return;
+  document.getElementById('dokument-modal-naslov').textContent = 'Uredi dokument';
+  document.getElementById('dokument-naziv').value = d.naziv;
+  document.getElementById('dokument-kategorija').value = d.kategorija;
+  document.getElementById('dokument-link').value = d.link;
+  document.getElementById('dokument-opis').value = d.opis || '';
+  document.getElementById('dokument-datum').value = d.datum || '';
+  document.getElementById('dokument-edit-id').value = id;
+  const zevSel = document.getElementById('dokument-zev');
+  zevSel.innerHTML = '<option value="">Svi ZEV-ovi</option>' +
+    DB.zevovi.map(z => `<option value="${z.id}" ${z.id===d.zev?'selected':''}>${z.naziv}</option>`).join('');
+  openModal('modal-novi-dokument');
+}
+
+function snimiDokument() {
+  const naziv = document.getElementById('dokument-naziv').value.trim();
+  const link = document.getElementById('dokument-link').value.trim();
+  if (!naziv) { toast('Unesite naziv dokumenta.', 'error'); return; }
+  if (!link) { toast('Unesite Google Drive link.', 'error'); return; }
+  if (!link.startsWith('http')) { toast('Link mora počinjati sa http:// ili https://', 'error'); return; }
+
+  const editId = document.getElementById('dokument-edit-id').value;
+  const podaci = {
+    naziv,
+    kategorija: document.getElementById('dokument-kategorija').value,
+    link,
+    opis: document.getElementById('dokument-opis').value.trim(),
+    datum: document.getElementById('dokument-datum').value,
+    zev: document.getElementById('dokument-zev').value,
+  };
+
+  if (editId) {
+    const d = DB.dokumenti.find(d => d.id === editId);
+    if (d) Object.assign(d, podaci);
+    toast('Dokument ažuriran!', 'success');
+  } else {
+    DB.dokumenti.push({ id: 'dok' + Date.now(), ...podaci });
+    toast('Dokument dodan!', 'success');
+  }
+  closeModal('modal-novi-dokument');
+  renderAdminDokumenti();
+  window.spremiUFirestore('dokumenti');
+}
+
+function obrisiDokument(id) {
+  if (!confirm('Obrisati ovaj dokument?')) return;
+  DB.dokumenti = DB.dokumenti.filter(d => d.id !== id);
+  toast('Dokument obrisan.', 'success');
+  renderAdminDokumenti();
+  window.spremiUFirestore('dokumenti');
 }
 
 // ═══════════════════════════════════════════════════════

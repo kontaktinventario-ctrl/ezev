@@ -827,6 +827,9 @@ body.admin .admin-only-block { display: block; }
       <button class="nav-btn admin-only" onclick="showPage('admin-budzet')" id="nav-admin-budzet" style="display:none">
         <i class="ti ti-chart-pie"></i> Budžet
       </button>
+      <button class="nav-btn vlasnik-only" onclick="showPage('budzet')" id="nav-budzet" style="display:none">
+        <i class="ti ti-chart-pie"></i> Budžet
+      </button>
       <button class="nav-btn admin-only" onclick="showPage('admin-kontakti')" id="nav-admin-kontakti" style="display:none">
         <i class="ti ti-phone-call"></i> Kontakti
       </button>
@@ -1184,9 +1187,14 @@ body.admin .admin-only-block { display: block; }
           <div class="page-title">Godišnji plan i budžet</div>
           <div class="page-sub">Plan prihoda i rashoda po zajednicama</div>
         </div>
-        <button class="btn btn-primary" onclick="openNoviBudzet()">
-          <i class="ti ti-plus"></i> Novi plan
-        </button>
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="exportBudzetPdf()">
+            <i class="ti ti-file-type-pdf"></i> PDF
+          </button>
+          <button class="btn btn-primary" onclick="openNoviBudzet()">
+            <i class="ti ti-plus"></i> Novi plan
+          </button>
+        </div>
       </div>
       <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end">
         <div class="field" style="margin:0;flex:1;min-width:160px">
@@ -1199,6 +1207,26 @@ body.admin .admin-only-block { display: block; }
         </div>
       </div>
       <div id="admin-budzet-lista"></div>
+    </div>
+
+    <!-- ══ BUDŽET (vlasnik) ══ -->
+    <div class="page" id="page-budzet">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Godišnji plan i budžet</div>
+          <div class="page-sub">Finansijski plan vaše zajednice</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-end">
+          <div class="field" style="margin:0">
+            <label>Godina</label>
+            <select id="vlasnik-budzet-godina" onchange="renderVlasnikBudzet()"></select>
+          </div>
+          <button class="btn" onclick="exportBudzetPdf()">
+            <i class="ti ti-file-type-pdf"></i> PDF
+          </button>
+        </div>
+      </div>
+      <div id="vlasnik-budzet-sadrzaj"></div>
     </div>
 
     <!-- ══ KONTAKTI (admin) ══ -->
@@ -1814,9 +1842,10 @@ body.admin .admin-only-block { display: block; }
     <div class="field"><label>Email (opciono)</label><input type="email" id="kontakt-email" placeholder="kontakt@primjer.ba"></div>
     <div class="field"><label>Napomena (opciono)</label><input type="text" id="kontakt-napomena" placeholder="Radno vrijeme, specijalizacija..."></div>
     <div class="field">
-      <label>Vidljivo za ZEV</label>
+      <label>Vidljivo za</label>
       <select id="kontakt-zev">
-        <option value="">Svi ZEV-ovi</option>
+        <option value="">Svi ZEV-ovi (vidljivo svim vlasnicima)</option>
+        <option value="__admin__">Samo admin (interni kontakti)</option>
       </select>
     </div>
     <input type="hidden" id="kontakt-edit-id">
@@ -3039,6 +3068,7 @@ function doLogin(user) {
     document.getElementById('nav-savjetnik').style.display = 'inline-flex';
     document.getElementById('nav-kontakti').style.display = 'inline-flex';
     document.getElementById('nav-dokumenti').style.display = 'inline-flex';
+    document.getElementById('nav-budzet').style.display = 'inline-flex';
     // Postavi ZEV-ove — ako Firebase još nije učitao podatke, sačekaj
     if (window.__firebaseReady) {
       osvjeziZevoviVlasnika();
@@ -3078,6 +3108,7 @@ function odjava() {
   document.getElementById('nav-admin-dokumenti').style.display = 'none';
   document.getElementById('nav-kontakti').style.display = 'none';
   document.getElementById('nav-dokumenti').style.display = 'none';
+  document.getElementById('nav-budzet').style.display = 'none';
   document.querySelectorAll('.vlasnik-only').forEach(el => el.style.display = 'none');
   document.getElementById('admin-user').value = '';
   document.getElementById('admin-pass').value = '';
@@ -3134,6 +3165,7 @@ function popuniMobilniMeni() {
     { id: 'admin-dokumenti', icon: 'ti-files', naziv: 'Dokumenti (admin)', samo: 'admin' },
     { id: 'kontakti', icon: 'ti-phone-call', naziv: 'Kontakti', samo: 'vlasnik' },
     { id: 'dokumenti', icon: 'ti-files', naziv: 'Dokumenti', samo: 'vlasnik' },
+    { id: 'budzet', icon: 'ti-chart-pie', naziv: 'Budžet', samo: 'vlasnik' },
   ].filter(s => {
     if (s.samo === 'admin') return jeAdmin;
     if (s.samo === 'vlasnik') return !jeAdmin;
@@ -3186,6 +3218,7 @@ function renderPage(id) {
   if (id === 'komsija') renderKomsijaVlasnik();
   if (id === 'admin-komsija') renderAdminKomsija();
   if (id === 'admin-budzet') initAdminBudzet();
+  if (id === 'budzet') initVlasnikBudzet();
   if (id === 'admin-kontakti') renderAdminKontakti();
   if (id === 'kontakti') renderKontaktiVlasnik();
   if (id === 'admin-dokumenti') initAdminDokumenti();
@@ -4880,6 +4913,223 @@ function obrisiPlanBudzeta(id) {
   window.spremiUFirestore('budzet');
 }
 
+// ─── BUDŽET — prikaz za vlasnika ───────────────────────
+
+function initVlasnikBudzet() {
+  const godSel = document.getElementById('vlasnik-budzet-godina');
+  if (!godSel) return;
+  const zevId = currentUser?.aktivniZev;
+  // Skupi dostupne godine iz baze za ovaj ZEV
+  const dostupneGodine = [...new Set(
+    DB.budzet.filter(b => b.zevId === zevId).map(b => b.godina)
+  )].sort((a,b) => b - a);
+  const prikazGodine = dostupneGodine.length > 0
+    ? dostupneGodine
+    : [new Date().getFullYear()];
+  const tekuca = new Date().getFullYear();
+  godSel.innerHTML = prikazGodine.map(g =>
+    `<option value="${g}" ${g === tekuca ? 'selected' : ''}>${g}.</option>`
+  ).join('');
+  renderVlasnikBudzet();
+}
+
+function renderVlasnikBudzet() {
+  const sadrzaj = document.getElementById('vlasnik-budzet-sadrzaj');
+  if (!sadrzaj) return;
+  const zevId = currentUser?.aktivniZev;
+  const godina = parseInt(document.getElementById('vlasnik-budzet-godina')?.value || new Date().getFullYear());
+  const z = DB.zevovi.find(z => z.id === zevId);
+  const b = DB.budzet.find(b => b.zevId === zevId && b.godina === godina);
+
+  if (!b) {
+    sadrzaj.innerHTML = `<div class="card" style="text-align:center;padding:40px;color:var(--text3)">
+      <i class="ti ti-chart-pie" style="font-size:32px;display:block;margin-bottom:10px"></i>
+      Administrator još nije unio plan budžeta za ${godina}. godinu.
+    </div>`;
+    return;
+  }
+
+  const ukPrihodi = (b.prihPotrosnja||0)+(b.prihInvesticije||0)+(b.prihOstalo||0);
+  const ukRashodi = (b.rashOdrzavanje||0)+(b.rashCiscenje||0)+(b.rashEnergija||0)+(b.rashInvesticije||0)+(b.rashOstalo||0);
+  const razlika = ukPrihodi - ukRashodi;
+  const ostvareni = DB.finansijskiPodaci.filter(f => f.zevId === zevId && f.period.endsWith('/'+godina));
+  const ostvUplate = ostvareni.reduce((s,f) => s+(f.uplate||0), 0);
+  const ostvIsplate = ostvareni.reduce((s,f) => s+(f.isplate||0), 0);
+  const pctPrih = ukPrihodi > 0 ? Math.min(100, Math.round(ostvUplate/ukPrihodi*100)) : 0;
+  const pctRash = ukRashodi > 0 ? Math.min(100, Math.round(ostvIsplate/ukRashodi*100)) : 0;
+
+  const stavka = (naziv, plan, ostvareno) => {
+    if (!plan && !ostvareno) return '';
+    const pct = plan > 0 ? Math.min(100, Math.round(ostvareno/plan*100)) : 0;
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
+        <span style="color:var(--text2)">${naziv}</span>
+        <span style="font-family:var(--font-mono);font-size:12px">
+          <span style="color:var(--text3)">${Number(ostvareno).toFixed(2)}</span>
+          <span style="color:var(--text3)"> / </span>
+          <span>${Number(plan).toFixed(2)} KM</span>
+        </span>
+      </div>
+      <div class="progress-bar" style="height:4px">
+        <div class="progress-fill" style="width:${pct}%;background:var(--accent)"></div>
+      </div>
+    </div>`;
+  };
+
+  sadrzaj.innerHTML = `
+    <div class="card" style="margin-bottom:14px">
+      <div style="font-weight:700;font-size:15px;margin-bottom:4px">${z?.naziv || ''}</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:16px">Plan za ${godina}. godinu ${b.napomena ? '· ' + b.napomena : ''}</div>
+      <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px">
+        <div class="stat" style="padding:10px 14px">
+          <div class="stat-label">Plan prihoda</div>
+          <div class="stat-val" style="color:var(--green)">${ukPrihodi.toFixed(2)} KM</div>
+        </div>
+        <div class="stat" style="padding:10px 14px">
+          <div class="stat-label">Plan rashoda</div>
+          <div class="stat-val" style="color:var(--red)">${ukRashodi.toFixed(2)} KM</div>
+        </div>
+        <div class="stat" style="padding:10px 14px">
+          <div class="stat-label">Planirani saldo</div>
+          <div class="stat-val" style="color:${razlika>=0?'var(--green)':'var(--red)'}">${razlika>=0?'+':''}${razlika.toFixed(2)} KM</div>
+        </div>
+        <div class="stat" style="padding:10px 14px">
+          <div class="stat-label">Ostvareno prihoda</div>
+          <div class="stat-val">${ostvUplate.toFixed(2)} KM <span style="font-size:11px;color:var(--text3)">(${pctPrih}%)</span></div>
+        </div>
+        <div class="stat" style="padding:10px 14px">
+          <div class="stat-label">Ostvareno rashoda</div>
+          <div class="stat-val">${ostvIsplate.toFixed(2)} KM <span style="font-size:11px;color:var(--text3)">(${pctRash}%)</span></div>
+        </div>
+      </div>
+
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--green);margin:14px 0 6px">Prihodi — plan vs ostvarenje</div>
+      ${stavka('Zajednička potrošnja', b.prihPotrosnja, 0)}
+      ${stavka('Investiciono održavanje', b.prihInvesticije, 0)}
+      ${stavka('Ostali prihodi', b.prihOstalo, 0)}
+
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--red);margin:14px 0 6px">Rashodi — plan vs ostvarenje</div>
+      ${stavka('Tekuće održavanje', b.rashOdrzavanje, 0)}
+      ${stavka('Čišćenje i higijena', b.rashCiscenje, 0)}
+      ${stavka('Energija', b.rashEnergija, 0)}
+      ${stavka('Investicije', b.rashInvesticije, 0)}
+      ${stavka('Ostali rashodi', b.rashOstalo, 0)}
+
+      <div style="margin-top:16px">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:5px">Ukupna realizacija prihoda (${pctPrih}%)</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pctPrih}%;background:var(--green)"></div></div>
+        <div style="font-size:11px;color:var(--text3);margin:8px 0 5px">Ukupna realizacija rashoda (${pctRash}%)</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pctRash}%;background:var(--red)"></div></div>
+      </div>
+    </div>`;
+}
+
+// ─── BUDŽET — PDF export ────────────────────────────────
+
+function exportBudzetPdf() {
+  const zevId = currentUser?.tip === 'admin'
+    ? document.getElementById('budzet-filter-zev')?.value
+    : currentUser?.aktivniZev;
+  const godina = parseInt(
+    (currentUser?.tip === 'admin'
+      ? document.getElementById('budzet-filter-godina')
+      : document.getElementById('vlasnik-budzet-godina'))?.value || new Date().getFullYear()
+  );
+
+  const b = DB.budzet.find(b => b.zevId === zevId && b.godina === godina);
+  const z = DB.zevovi.find(z => z.id === zevId);
+  if (!b || !z) { toast('Nema plana za odabrani ZEV i godinu.', 'error'); return; }
+
+  const ukPrihodi = (b.prihPotrosnja||0)+(b.prihInvesticije||0)+(b.prihOstalo||0);
+  const ukRashodi = (b.rashOdrzavanje||0)+(b.rashCiscenje||0)+(b.rashEnergija||0)+(b.rashInvesticije||0)+(b.rashOstalo||0);
+  const razlika = ukPrihodi - ukRashodi;
+  const ostvareni = DB.finansijskiPodaci.filter(f => f.zevId === zevId && f.period.endsWith('/'+godina));
+  const ostvUplate = ostvareni.reduce((s,f) => s+(f.uplate||0), 0);
+  const ostvIsplate = ostvareni.reduce((s,f) => s+(f.isplate||0), 0);
+  const pctPrih = ukPrihodi > 0 ? Math.min(100, Math.round(ostvUplate/ukPrihodi*100)) : 0;
+  const pctRash = ukRashodi > 0 ? Math.min(100, Math.round(ostvIsplate/ukRashodi*100)) : 0;
+
+  const redak = (naziv, val) => val > 0
+    ? `<tr><td style="padding:7px 10px;border-bottom:1px solid #eee;color:#555">${naziv}</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:500">${Number(val).toFixed(2)} KM</td></tr>`
+    : '';
+
+  const win = window.open('', '_blank');
+  if (!win) { toast('Dozvolite pop-up prozore za export PDF-a.', 'error'); return; }
+
+  win.document.write(`<!DOCTYPE html>
+<html lang="bs"><head><meta charset="UTF-8">
+<title>Plan budžeta ${godina} — ${z.naziv}</title>
+<style>
+  * { box-sizing:border-box; }
+  body { font-family:'Segoe UI',Arial,sans-serif; color:#1a1a1a; padding:36px; max-width:720px; margin:0 auto; font-size:13px; }
+  .header { border-bottom:3px solid #1a3a6b; padding-bottom:14px; margin-bottom:24px; }
+  .header h1 { font-size:18px; color:#1a3a6b; margin:0 0 4px; }
+  .header .sub { font-size:12px; color:#666; }
+  .summary { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:24px; }
+  .sum-item { background:#f5f6f8; border-radius:8px; padding:12px 14px; }
+  .sum-label { font-size:10px; color:#888; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
+  .sum-val { font-size:17px; font-weight:700; }
+  .green { color:#0f7a4d; } .red { color:#c0392b; }
+  table { width:100%; border-collapse:collapse; margin-bottom:20px; }
+  th { text-align:left; padding:8px 10px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#888; border-bottom:2px solid #ddd; background:#f9fafb; }
+  td { padding:7px 10px; border-bottom:1px solid #eee; }
+  .section-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px; padding-bottom:6px; border-bottom:1px solid #ddd; }
+  .section-title.g { color:#0f7a4d; } .section-title.r { color:#c0392b; }
+  .progress { height:6px; background:#e8eaf0; border-radius:3px; margin:4px 0 2px; }
+  .progress-fill { height:100%; border-radius:3px; }
+  .footer { margin-top:36px; padding-top:12px; border-top:1px solid #ddd; font-size:10px; color:#999; text-align:center; }
+  @media print { body { padding:16px; } }
+</style></head>
+<body>
+  <div class="header">
+    <h1>Godišnji plan budžeta — ${godina}. godina</h1>
+    <div class="sub">${z.naziv} · ${z.adresa || ''}</div>
+    ${b.napomena ? `<div style="font-size:12px;color:#666;margin-top:4px">${b.napomena}</div>` : ''}
+  </div>
+
+  <div class="summary">
+    <div class="sum-item"><div class="sum-label">Plan prihoda</div><div class="sum-val green">${ukPrihodi.toFixed(2)} KM</div></div>
+    <div class="sum-item"><div class="sum-label">Plan rashoda</div><div class="sum-val red">${ukRashodi.toFixed(2)} KM</div></div>
+    <div class="sum-item"><div class="sum-label">Planirani saldo</div><div class="sum-val ${razlika>=0?'green':'red'}">${razlika>=0?'+':''}${razlika.toFixed(2)} KM</div></div>
+    <div class="sum-item"><div class="sum-label">Ostvareno prihoda</div><div class="sum-val">${ostvUplate.toFixed(2)} KM <span style="font-size:12px;color:#888">(${pctPrih}%)</span></div></div>
+    <div class="sum-item"><div class="sum-label">Ostvareno rashoda</div><div class="sum-val">${ostvIsplate.toFixed(2)} KM <span style="font-size:12px;color:#888">(${pctRash}%)</span></div></div>
+    <div class="sum-item"><div class="sum-label">Ostvareni saldo</div><div class="sum-val ${(ostvUplate-ostvIsplate)>=0?'green':'red'}">${(ostvUplate-ostvIsplate)>=0?'+':''}${(ostvUplate-ostvIsplate).toFixed(2)} KM</div></div>
+  </div>
+
+  <div class="section-title g">Planirani prihodi</div>
+  <table><tbody>
+    ${redak('Zajednička potrošnja', b.prihPotrosnja)}
+    ${redak('Investiciono održavanje', b.prihInvesticije)}
+    ${redak('Ostali prihodi', b.prihOstalo)}
+    <tr style="background:#f9fafb"><td style="padding:8px 10px;font-weight:700">UKUPNO PRIHODI</td><td style="padding:8px 10px;text-align:right;font-weight:700;color:#0f7a4d">${ukPrihodi.toFixed(2)} KM</td></tr>
+  </tbody></table>
+
+  <div class="section-title r">Planirani rashodi</div>
+  <table><tbody>
+    ${redak('Tekuće održavanje', b.rashOdrzavanje)}
+    ${redak('Čišćenje i higijena', b.rashCiscenje)}
+    ${redak('Energija (struja/voda)', b.rashEnergija)}
+    ${redak('Investicije', b.rashInvesticije)}
+    ${redak('Ostali rashodi', b.rashOstalo)}
+    <tr style="background:#f9fafb"><td style="padding:8px 10px;font-weight:700">UKUPNO RASHODI</td><td style="padding:8px 10px;text-align:right;font-weight:700;color:#c0392b">${ukRashodi.toFixed(2)} KM</td></tr>
+  </tbody></table>
+
+  <div class="section-title" style="color:#1a3a6b">Realizacija</div>
+  <table><tbody>
+    <tr><td style="padding:7px 10px;border-bottom:1px solid #eee">Realizacija prihoda</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:right">${ostvUplate.toFixed(2)} KM / ${ukPrihodi.toFixed(2)} KM</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:700;color:#0f7a4d">${pctPrih}%</td></tr>
+    <tr><td style="padding:7px 10px">Realizacija rashoda</td>
+      <td style="padding:7px 10px;text-align:right">${ostvIsplate.toFixed(2)} KM / ${ukRashodi.toFixed(2)} KM</td>
+      <td style="padding:7px 10px;text-align:right;font-weight:700;color:#c0392b">${pctRash}%</td></tr>
+  </tbody></table>
+
+  <div class="footer">Generisano putem e-ZEV aplikacije · ${new Date().toLocaleString('bs-BA')}</div>
+  <scr` + `ipt>window.onload=function(){setTimeout(function(){window.print()},300);};<\/scr` + `ipt>
+</body></html>`);
+  win.document.close();
+}
+
 // ═══════════════════════════════════════════════════════
 // KONTAKTI — servisi, hitne službe, komunalne službe
 // ═══════════════════════════════════════════════════════
@@ -4900,7 +5150,11 @@ function renderKontaktKartica(k, adminMode) {
       <div style="flex:1;min-width:0">
         <div style="font-weight:700;font-size:14px;margin-bottom:2px">${k.naziv}</div>
         <div style="font-size:11px;color:var(--text3)">${KONTAKT_KATEGORIJE[k.kategorija]||'Ostalo'}</div>
-        ${k.zev?`<div style="font-size:11px;color:var(--accent);margin-top:2px"><i class="ti ti-building-community"></i> ${ZEVOVI[k.zev]||k.zev}</div>`:''}
+        ${k.zev === '__admin__'
+          ? `<div style="font-size:11px;color:#f0c060;margin-top:2px"><i class="ti ti-lock"></i> Interni — vidljivo samo adminu</div>`
+          : k.zev
+            ? `<div style="font-size:11px;color:var(--accent);margin-top:2px"><i class="ti ti-building-community"></i> ${ZEVOVI[k.zev]||k.zev}</div>`
+            : ''}
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:5px;font-size:13px">
@@ -4927,7 +5181,8 @@ function renderKontaktiVlasnik() {
   const lista = document.getElementById('kontakti-lista');
   if (!lista) return;
   const aktivniZev = currentUser?.aktivniZev;
-  const kontakti = DB.kontakti.filter(k => !k.zev || k.zev === aktivniZev);
+  // Vlasnik NE vidi kontakte označene kao "__admin__"
+  const kontakti = DB.kontakti.filter(k => k.zev !== '__admin__' && (!k.zev || k.zev === aktivniZev));
   lista.innerHTML = kontakti.length === 0
     ? '<div class="card" style="text-align:center;padding:40px;color:var(--text3);grid-column:1/-1"><i class="ti ti-phone-call" style="font-size:32px;display:block;margin-bottom:10px"></i>Nema unesenih kontakata za vašu zajednicu.</div>'
     : kontakti.map(k => renderKontaktKartica(k, false)).join('');
@@ -4939,7 +5194,8 @@ function openNoviKontakt() {
     .forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
   document.getElementById('kontakt-kategorija').value = 'ti-phone';
   const zevSel = document.getElementById('kontakt-zev');
-  zevSel.innerHTML = '<option value="">Svi ZEV-ovi</option>' +
+  zevSel.innerHTML = '<option value="">Svi ZEV-ovi (vidljivo svim vlasnicima)</option>' +
+    '<option value="__admin__">Samo admin (interni kontakti)</option>' +
     DB.zevovi.map(z => `<option value="${z.id}">${z.naziv}</option>`).join('');
   openModal('modal-novi-kontakt');
 }
@@ -4955,8 +5211,10 @@ function urediKontakt(id) {
   document.getElementById('kontakt-napomena').value = k.napomena||'';
   document.getElementById('kontakt-edit-id').value = id;
   const zevSel = document.getElementById('kontakt-zev');
-  zevSel.innerHTML = '<option value="">Svi ZEV-ovi</option>' +
+  zevSel.innerHTML = '<option value="">Svi ZEV-ovi (vidljivo svim vlasnicima)</option>' +
+    '<option value="__admin__">Samo admin (interni kontakti)</option>' +
     DB.zevovi.map(z => `<option value="${z.id}" ${z.id===k.zev?'selected':''}>${z.naziv}</option>`).join('');
+  if (k.zev === '__admin__') zevSel.value = '__admin__';
   openModal('modal-novi-kontakt');
 }
 

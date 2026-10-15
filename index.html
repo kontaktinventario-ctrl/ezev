@@ -790,19 +790,19 @@ body.admin .admin-only-block { display: block; }
     </div>
 
     <nav class="topbar-nav">
-      <button class="nav-btn active" onclick="showPage('glasanje')" id="nav-glasanje">
+      <button class="nav-btn vlasnik-only active" onclick="showPage('glasanje')" id="nav-glasanje" style="display:none">
         <i class="ti ti-checkup-list"></i> Glasanje online
       </button>
-      <button class="nav-btn" onclick="showPage('prijave')" id="nav-prijave">
+      <button class="nav-btn vlasnik-only" onclick="showPage('prijave')" id="nav-prijave" style="display:none">
         <i class="ti ti-tool"></i> Prijava problema
       </button>
-      <button class="nav-btn" onclick="showPage('izvjestaji')" id="nav-izvjestaji">
+      <button class="nav-btn vlasnik-only" onclick="showPage('izvjestaji')" id="nav-izvjestaji" style="display:none">
         <i class="ti ti-chart-bar"></i> Izvještaji
       </button>
       <button class="nav-btn vlasnik-only" onclick="showPage('savjetnik')" id="nav-savjetnik" style="display:none">
         <i class="ti ti-message-chatbot"></i> Virtuelni savjetnik
       </button>
-      <button class="nav-btn" onclick="showPage('komsija')" id="nav-komsija">
+      <button class="nav-btn vlasnik-only" onclick="showPage('komsija')" id="nav-komsija" style="display:none">
         <i class="ti ti-discount-2"></i> Komšija+
       </button>
       <!-- Admin only -->
@@ -3065,6 +3065,10 @@ function doLogin(user) {
     rb.textContent = 'Etažni vlasnik';
     rb.className = 'role-badge role-vlasnik';
     document.getElementById('btn-poveci-nalog').style.display = 'inline-flex';
+    document.getElementById('nav-glasanje').style.display = 'inline-flex';
+    document.getElementById('nav-prijave').style.display = 'inline-flex';
+    document.getElementById('nav-izvjestaji').style.display = 'inline-flex';
+    document.getElementById('nav-komsija').style.display = 'inline-flex';
     document.getElementById('nav-savjetnik').style.display = 'inline-flex';
     document.getElementById('nav-kontakti').style.display = 'inline-flex';
     document.getElementById('nav-dokumenti').style.display = 'inline-flex';
@@ -4785,8 +4789,8 @@ function renderAdminBudzet() {
   const ostvareni = DB.finansijskiPodaci.filter(f => f.zevId === zevId && f.period.endsWith('/'+godina));
   const ostvUplate = ostvareni.reduce((s,f) => s+(f.uplate||0), 0);
   const ostvIsplate = ostvareni.reduce((s,f) => s+(f.isplate||0), 0);
-  const pctPrih = ukPrihodi > 0 ? Math.min(100, Math.round(ostvUplate/ukPrihodi*100)) : 0;
-  const pctRash = ukRashodi > 0 ? Math.min(100, Math.round(ostvIsplate/ukRashodi*100)) : 0;
+  const pctPrih = ukPrihodi > 0 ? Math.round(ostvUplate/ukPrihodi*100) : 0;
+  const pctRash = ukRashodi > 0 ? Math.round(ostvIsplate/ukRashodi*100) : 0;
 
   const stavkaPrihoda = (naziv, val) => val > 0 ? `
     <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid var(--border)">
@@ -4828,9 +4832,9 @@ function renderAdminBudzet() {
       </div>
     </div>
     <div style="font-size:11px;color:var(--text3);margin-bottom:5px">Realizacija prihoda (${pctPrih}%)</div>
-    <div class="progress-bar"><div class="progress-fill" style="width:${pctPrih}%;background:var(--green)"></div></div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(100,pctPrih)}%;background:var(--green)"></div></div>
     <div style="font-size:11px;color:var(--text3);margin:8px 0 5px">Realizacija rashoda (${pctRash}%)</div>
-    <div class="progress-bar"><div class="progress-fill" style="width:${pctRash}%;background:var(--red)"></div></div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(100,pctRash)}%;background:var(--red)"></div></div>
   </div>`;
 }
 
@@ -4955,12 +4959,12 @@ function renderVlasnikBudzet() {
   const ostvareni = DB.finansijskiPodaci.filter(f => f.zevId === zevId && f.period.endsWith('/'+godina));
   const ostvUplate = ostvareni.reduce((s,f) => s+(f.uplate||0), 0);
   const ostvIsplate = ostvareni.reduce((s,f) => s+(f.isplate||0), 0);
-  const pctPrih = ukPrihodi > 0 ? Math.min(100, Math.round(ostvUplate/ukPrihodi*100)) : 0;
-  const pctRash = ukRashodi > 0 ? Math.min(100, Math.round(ostvIsplate/ukRashodi*100)) : 0;
+  const pctPrih = ukPrihodi > 0 ? Math.round(ostvUplate/ukPrihodi*100) : 0;
+  const pctRash = ukRashodi > 0 ? Math.round(ostvIsplate/ukRashodi*100) : 0;
 
   const stavka = (naziv, plan, ostvareno) => {
     if (!plan && !ostvareno) return '';
-    const pct = plan > 0 ? Math.min(100, Math.round(ostvareno/plan*100)) : 0;
+    const pct = plan > 0 ? Math.round(ostvareno/plan*100) : 0;
     return `<div style="padding:10px 0;border-bottom:1px solid var(--border)">
       <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
         <span style="color:var(--text2)">${naziv}</span>
@@ -4971,7 +4975,7 @@ function renderVlasnikBudzet() {
         </span>
       </div>
       <div class="progress-bar" style="height:4px">
-        <div class="progress-fill" style="width:${pct}%;background:var(--accent)"></div>
+        <div class="progress-fill" style="width:${Math.min(100,pct)}%;background:var(--accent)"></div>
       </div>
     </div>`;
   };
@@ -5017,9 +5021,9 @@ function renderVlasnikBudzet() {
 
       <div style="margin-top:16px">
         <div style="font-size:11px;color:var(--text3);margin-bottom:5px">Ukupna realizacija prihoda (${pctPrih}%)</div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${pctPrih}%;background:var(--green)"></div></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(100,pctPrih)}%;background:var(--green)"></div></div>
         <div style="font-size:11px;color:var(--text3);margin:8px 0 5px">Ukupna realizacija rashoda (${pctRash}%)</div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${pctRash}%;background:var(--red)"></div></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(100,pctRash)}%;background:var(--red)"></div></div>
       </div>
     </div>`;
 }
@@ -5046,8 +5050,8 @@ function exportBudzetPdf() {
   const ostvareni = DB.finansijskiPodaci.filter(f => f.zevId === zevId && f.period.endsWith('/'+godina));
   const ostvUplate = ostvareni.reduce((s,f) => s+(f.uplate||0), 0);
   const ostvIsplate = ostvareni.reduce((s,f) => s+(f.isplate||0), 0);
-  const pctPrih = ukPrihodi > 0 ? Math.min(100, Math.round(ostvUplate/ukPrihodi*100)) : 0;
-  const pctRash = ukRashodi > 0 ? Math.min(100, Math.round(ostvIsplate/ukRashodi*100)) : 0;
+  const pctPrih = ukPrihodi > 0 ? Math.round(ostvUplate/ukPrihodi*100) : 0;
+  const pctRash = ukRashodi > 0 ? Math.round(ostvIsplate/ukRashodi*100) : 0;
 
   const redak = (naziv, val) => val > 0
     ? `<tr><td style="padding:7px 10px;border-bottom:1px solid #eee;color:#555">${naziv}</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:500">${Number(val).toFixed(2)} KM</td></tr>`

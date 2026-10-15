@@ -824,6 +824,9 @@ body.admin .admin-only-block { display: block; }
       <button class="nav-btn admin-only" onclick="showPage('admin-komsija')" id="nav-admin-komsija" style="display:none">
         <i class="ti ti-discount-2"></i> Komšija+
       </button>
+      <button class="nav-btn admin-only" onclick="showPage('izvjestaji')" id="nav-admin-izvjestaji" style="display:none">
+        <i class="ti ti-chart-bar"></i> Izvještaji
+      </button>
       <button class="nav-btn admin-only" onclick="showPage('admin-budzet')" id="nav-admin-budzet" style="display:none">
         <i class="ti ti-chart-pie"></i> Budžet
       </button>
@@ -1795,17 +1798,20 @@ body.admin .admin-only-block { display: block; }
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--green);margin:14px 0 10px">Planirani prihodi (KM)</div>
     <div class="field-row">
       <div class="field"><label>Zajednička potrošnja</label><input type="number" id="budzet-prih-potrosnja" placeholder="0.00" min="0" step="0.01"></div>
-      <div class="field"><label>Investiciono održavanje</label><input type="number" id="budzet-prih-investicije" placeholder="0.00" min="0" step="0.01"></div>
+      <div class="field"><label>Uplate etažnih vlasnika</label><input type="number" id="budzet-prih-investicije" placeholder="0.00" min="0" step="0.01"></div>
     </div>
-    <div class="field"><label>Ostali prihodi</label><input type="number" id="budzet-prih-ostalo" placeholder="0.00" min="0" step="0.01"></div>
+    <div class="field-row">
+      <div class="field"><label>Ostale uplate</label><input type="number" id="budzet-prih-ostale-uplate" placeholder="0.00" min="0" step="0.01"></div>
+      <div class="field"><label>Ostali prihodi</label><input type="number" id="budzet-prih-ostalo" placeholder="0.00" min="0" step="0.01"></div>
+    </div>
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--red);margin:14px 0 10px">Planirani rashodi (KM)</div>
     <div class="field-row">
-      <div class="field"><label>Tekuće održavanje</label><input type="number" id="budzet-rash-odrzavanje" placeholder="0.00" min="0" step="0.01"></div>
-      <div class="field"><label>Čišćenje i higijena</label><input type="number" id="budzet-rash-ciscenje" placeholder="0.00" min="0" step="0.01"></div>
+      <div class="field"><label>Tekuće održavanje (čišćenje, admin. troškovi, bankarski troškovi, servis lifta)</label><input type="number" id="budzet-rash-odrzavanje" placeholder="0.00" min="0" step="0.01"></div>
+      <div class="field"><label>Nabavka opreme</label><input type="number" id="budzet-rash-ciscenje" placeholder="0.00" min="0" step="0.01"></div>
     </div>
     <div class="field-row">
       <div class="field"><label>Energija (struja/voda)</label><input type="number" id="budzet-rash-energija" placeholder="0.00" min="0" step="0.01"></div>
-      <div class="field"><label>Investicije</label><input type="number" id="budzet-rash-investicije" placeholder="0.00" min="0" step="0.01"></div>
+      <div class="field"><label>Investiciono održavanje</label><input type="number" id="budzet-rash-investicije" placeholder="0.00" min="0" step="0.01"></div>
     </div>
     <div class="field"><label>Ostali rashodi</label><input type="number" id="budzet-rash-ostalo" placeholder="0.00" min="0" step="0.01"></div>
     <div class="field"><label>Napomena</label><textarea id="budzet-napomena" rows="2" placeholder="Opciono..."></textarea></div>
@@ -3056,6 +3062,7 @@ function doLogin(user) {
     document.getElementById('nav-admin-prijave').style.display = 'inline-flex';
     document.getElementById('nav-admin-savjetnik').style.display = 'inline-flex';
     document.getElementById('nav-admin-komsija').style.display = 'inline-flex';
+    document.getElementById('nav-admin-izvjestaji').style.display = 'inline-flex';
     document.getElementById('nav-admin-budzet').style.display = 'inline-flex';
     document.getElementById('nav-admin-kontakti').style.display = 'inline-flex';
     document.getElementById('nav-admin-dokumenti').style.display = 'inline-flex';
@@ -3107,6 +3114,7 @@ function odjava() {
   document.getElementById('nav-admin-prijave').style.display = 'none';
   document.getElementById('nav-admin-savjetnik').style.display = 'none';
   document.getElementById('nav-admin-komsija').style.display = 'none';
+  document.getElementById('nav-admin-izvjestaji').style.display = 'none';
   document.getElementById('nav-admin-budzet').style.display = 'none';
   document.getElementById('nav-admin-kontakti').style.display = 'none';
   document.getElementById('nav-admin-dokumenti').style.display = 'none';
@@ -3155,15 +3163,16 @@ function popuniMobilniMeni() {
   const sveStavke = [
     { id: 'glasanje', icon: 'ti-checkup-list', naziv: 'Glasanje online', samo: 'vlasnik' },
     { id: 'prijave', icon: 'ti-tool', naziv: 'Prijava problema', samo: 'vlasnik' },
-    { id: 'izvjestaji', icon: 'ti-chart-bar', naziv: 'Izvještaji', samo: null },
     { id: 'savjetnik', icon: 'ti-message-chatbot', naziv: 'Virtuelni savjetnik', samo: 'vlasnik' },
-    { id: 'komsija', icon: 'ti-discount-2', naziv: 'Komšija+', samo: null },
+    { id: 'izvjestaji', icon: 'ti-chart-bar', naziv: 'Izvještaji', samo: 'vlasnik' },
+    { id: 'komsija', icon: 'ti-discount-2', naziv: 'Komšija+', samo: 'vlasnik' },
     { id: 'admin-pregled', icon: 'ti-layout-dashboard', naziv: 'Pregled', samo: 'admin' },
     { id: 'admin-zevovi', icon: 'ti-building-community', naziv: 'ZEV-ovi', samo: 'admin' },
     { id: 'admin-glasanje', icon: 'ti-settings', naziv: 'Glasanje (admin)', samo: 'admin' },
     { id: 'admin-prijave', icon: 'ti-inbox', naziv: 'Primljene prijave', samo: 'admin' },
     { id: 'admin-savjetnik', icon: 'ti-message-chatbot', naziv: 'Savjetnik (admin)', samo: 'admin' },
     { id: 'admin-komsija', icon: 'ti-discount-2', naziv: 'Komšija+ (admin)', samo: 'admin' },
+    { id: 'izvjestaji', icon: 'ti-chart-bar', naziv: 'Izvještaji', samo: 'admin' },
     { id: 'admin-budzet', icon: 'ti-chart-pie', naziv: 'Budžet', samo: 'admin' },
     { id: 'admin-kontakti', icon: 'ti-phone-call', naziv: 'Kontakti (admin)', samo: 'admin' },
     { id: 'admin-dokumenti', icon: 'ti-files', naziv: 'Dokumenti (admin)', samo: 'admin' },
@@ -4783,7 +4792,7 @@ function renderAdminBudzet() {
   }
 
   const b = planovi[0];
-  const ukPrihodi = (b.prihPotrosnja||0)+(b.prihInvesticije||0)+(b.prihOstalo||0);
+  const ukPrihodi = (b.prihPotrosnja||0)+(b.prihInvesticije||0)+(b.prihOstaleUplate||0)+(b.prihOstalo||0);
   const ukRashodi = (b.rashOdrzavanje||0)+(b.rashCiscenje||0)+(b.rashEnergija||0)+(b.rashInvesticije||0)+(b.rashOstalo||0);
   const razlika = ukPrihodi - ukRashodi;
   const ostvareni = DB.finansijskiPodaci.filter(f => f.zevId === zevId && f.period.endsWith('/'+godina));
@@ -4819,15 +4828,16 @@ function renderAdminBudzet() {
       <div>
         <div style="font-size:11px;color:var(--green);font-weight:700;margin-bottom:8px;text-transform:uppercase">Prihodi</div>
         ${stavkaPrihoda('Zajednička potrošnja', b.prihPotrosnja)}
-        ${stavkaPrihoda('Investiciono održavanje', b.prihInvesticije)}
+        ${stavkaPrihoda('Uplate etažnih vlasnika', b.prihInvesticije)}
+        ${stavkaPrihoda('Ostale uplate', b.prihOstaleUplate)}
         ${stavkaPrihoda('Ostali prihodi', b.prihOstalo)}
       </div>
       <div>
         <div style="font-size:11px;color:var(--red);font-weight:700;margin-bottom:8px;text-transform:uppercase">Rashodi</div>
         ${stavkaPrihoda('Tekuće održavanje', b.rashOdrzavanje)}
-        ${stavkaPrihoda('Čišćenje i higijena', b.rashCiscenje)}
+        ${stavkaPrihoda('Nabavka opreme', b.rashCiscenje)}
         ${stavkaPrihoda('Energija', b.rashEnergija)}
-        ${stavkaPrihoda('Investicije', b.rashInvesticije)}
+        ${stavkaPrihoda('Investiciono održavanje', b.rashInvesticije)}
         ${stavkaPrihoda('Ostali rashodi', b.rashOstalo)}
       </div>
     </div>
@@ -4847,7 +4857,7 @@ function openNoviBudzet() {
   const godine = [TEKUCA_GODINA-1, TEKUCA_GODINA, TEKUCA_GODINA+1, TEKUCA_GODINA+2];
   godSel.innerHTML = godine.map(g => `<option value="${g}" ${g===godina?'selected':''}>${g}.</option>`).join('');
   document.getElementById('budzet-modal-naslov').textContent = 'Novi plan budžeta';
-  ['budzet-prih-potrosnja','budzet-prih-investicije','budzet-prih-ostalo',
+  ['budzet-prih-potrosnja','budzet-prih-investicije','budzet-prih-ostale-uplate','budzet-prih-ostalo',
    'budzet-rash-odrzavanje','budzet-rash-ciscenje','budzet-rash-energija',
    'budzet-rash-investicije','budzet-rash-ostalo','budzet-napomena','budzet-edit-id']
     .forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
@@ -4865,6 +4875,7 @@ function urediPlanBudzeta(id) {
   document.getElementById('budzet-modal-naslov').textContent = 'Uredi plan budžeta';
   document.getElementById('budzet-prih-potrosnja').value = b.prihPotrosnja||'';
   document.getElementById('budzet-prih-investicije').value = b.prihInvesticije||'';
+  document.getElementById('budzet-prih-ostale-uplate').value = b.prihOstaleUplate||'';
   document.getElementById('budzet-prih-ostalo').value = b.prihOstalo||'';
   document.getElementById('budzet-rash-odrzavanje').value = b.rashOdrzavanje||'';
   document.getElementById('budzet-rash-ciscenje').value = b.rashCiscenje||'';
@@ -4885,6 +4896,7 @@ function snimiPlanBudzeta() {
     zevId, godina,
     prihPotrosnja: parseFloat(document.getElementById('budzet-prih-potrosnja').value)||0,
     prihInvesticije: parseFloat(document.getElementById('budzet-prih-investicije').value)||0,
+    prihOstaleUplate: parseFloat(document.getElementById('budzet-prih-ostale-uplate').value)||0,
     prihOstalo: parseFloat(document.getElementById('budzet-prih-ostalo').value)||0,
     rashOdrzavanje: parseFloat(document.getElementById('budzet-rash-odrzavanje').value)||0,
     rashCiscenje: parseFloat(document.getElementById('budzet-rash-ciscenje').value)||0,
@@ -4953,7 +4965,7 @@ function renderVlasnikBudzet() {
     return;
   }
 
-  const ukPrihodi = (b.prihPotrosnja||0)+(b.prihInvesticije||0)+(b.prihOstalo||0);
+  const ukPrihodi = (b.prihPotrosnja||0)+(b.prihInvesticije||0)+(b.prihOstaleUplate||0)+(b.prihOstalo||0);
   const ukRashodi = (b.rashOdrzavanje||0)+(b.rashCiscenje||0)+(b.rashEnergija||0)+(b.rashInvesticije||0)+(b.rashOstalo||0);
   const razlika = ukPrihodi - ukRashodi;
   const ostvareni = DB.finansijskiPodaci.filter(f => f.zevId === zevId && f.period.endsWith('/'+godina));
@@ -5009,14 +5021,15 @@ function renderVlasnikBudzet() {
 
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--green);margin:14px 0 6px">Prihodi — plan vs ostvarenje</div>
       ${stavka('Zajednička potrošnja', b.prihPotrosnja, 0)}
-      ${stavka('Investiciono održavanje', b.prihInvesticije, 0)}
+      ${stavka('Uplate etažnih vlasnika', b.prihInvesticije, 0)}
+      ${stavka('Ostale uplate', b.prihOstaleUplate, 0)}
       ${stavka('Ostali prihodi', b.prihOstalo, 0)}
 
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--red);margin:14px 0 6px">Rashodi — plan vs ostvarenje</div>
-      ${stavka('Tekuće održavanje', b.rashOdrzavanje, 0)}
-      ${stavka('Čišćenje i higijena', b.rashCiscenje, 0)}
+      ${stavka('Tekuće održavanje (čišćenje, admin. troškovi, bankarski troškovi, servis lifta)', b.rashOdrzavanje, 0)}
+      ${stavka('Nabavka opreme', b.rashCiscenje, 0)}
       ${stavka('Energija', b.rashEnergija, 0)}
-      ${stavka('Investicije', b.rashInvesticije, 0)}
+      ${stavka('Investiciono održavanje', b.rashInvesticije, 0)}
       ${stavka('Ostali rashodi', b.rashOstalo, 0)}
 
       <div style="margin-top:16px">
@@ -5044,7 +5057,7 @@ function exportBudzetPdf() {
   const z = DB.zevovi.find(z => z.id === zevId);
   if (!b || !z) { toast('Nema plana za odabrani ZEV i godinu.', 'error'); return; }
 
-  const ukPrihodi = (b.prihPotrosnja||0)+(b.prihInvesticije||0)+(b.prihOstalo||0);
+  const ukPrihodi = (b.prihPotrosnja||0)+(b.prihInvesticije||0)+(b.prihOstaleUplate||0)+(b.prihOstalo||0);
   const ukRashodi = (b.rashOdrzavanje||0)+(b.rashCiscenje||0)+(b.rashEnergija||0)+(b.rashInvesticije||0)+(b.rashOstalo||0);
   const razlika = ukPrihodi - ukRashodi;
   const ostvareni = DB.finansijskiPodaci.filter(f => f.zevId === zevId && f.period.endsWith('/'+godina));
@@ -5103,17 +5116,18 @@ function exportBudzetPdf() {
   <div class="section-title g">Planirani prihodi</div>
   <table><tbody>
     ${redak('Zajednička potrošnja', b.prihPotrosnja)}
-    ${redak('Investiciono održavanje', b.prihInvesticije)}
+    ${redak('Uplate etažnih vlasnika', b.prihInvesticije)}
+    ${redak('Ostale uplate', b.prihOstaleUplate)}
     ${redak('Ostali prihodi', b.prihOstalo)}
     <tr style="background:#f9fafb"><td style="padding:8px 10px;font-weight:700">UKUPNO PRIHODI</td><td style="padding:8px 10px;text-align:right;font-weight:700;color:#0f7a4d">${ukPrihodi.toFixed(2)} KM</td></tr>
   </tbody></table>
 
   <div class="section-title r">Planirani rashodi</div>
   <table><tbody>
-    ${redak('Tekuće održavanje', b.rashOdrzavanje)}
-    ${redak('Čišćenje i higijena', b.rashCiscenje)}
+    ${redak('Tekuće održavanje (čišćenje, admin. troškovi, bankarski troškovi, servis lifta)', b.rashOdrzavanje)}
+    ${redak('Nabavka opreme', b.rashCiscenje)}
     ${redak('Energija (struja/voda)', b.rashEnergija)}
-    ${redak('Investicije', b.rashInvesticije)}
+    ${redak('Investiciono održavanje', b.rashInvesticije)}
     ${redak('Ostali rashodi', b.rashOstalo)}
     <tr style="background:#f9fafb"><td style="padding:8px 10px;font-weight:700">UKUPNO RASHODI</td><td style="padding:8px 10px;text-align:right;font-weight:700;color:#c0392b">${ukRashodi.toFixed(2)} KM</td></tr>
   </tbody></table>

@@ -790,7 +790,10 @@ body.admin .admin-only-block { display: block; }
     </div>
 
     <nav class="topbar-nav">
-      <button class="nav-btn vlasnik-only active" onclick="showPage('glasanje')" id="nav-glasanje" style="display:none">
+      <button class="nav-btn vlasnik-only active" onclick="showPage('vlasnik-pregled')" id="nav-vlasnik-pregled" style="display:none">
+        <i class="ti ti-layout-dashboard"></i> Pregled
+      </button>
+      <button class="nav-btn vlasnik-only" onclick="showPage('glasanje')" id="nav-glasanje" style="display:none">
         <i class="ti ti-checkup-list"></i> Glasanje online
       </button>
       <button class="nav-btn vlasnik-only" onclick="showPage('prijave')" id="nav-prijave" style="display:none">
@@ -975,6 +978,15 @@ body.admin .admin-only-block { display: block; }
     </div>
 
     <!-- ══ GLASANJE — VLASNIK VIEW ══ -->
+    <!-- ══ VLASNIK PREGLED (DASHBOARD) ══ -->
+    <div class="page" id="page-vlasnik-pregled">
+      <div class="page-header">
+        <div class="page-title">Pregled</div>
+        <div class="page-sub">Sažetak stanja vaše zajednice</div>
+      </div>
+      <div id="vlasnik-pregled-sadrzaj"></div>
+    </div>
+
     <div class="page active" id="page-glasanje">
       <div class="page-header">
         <div class="page-title">Glasanje online</div>
@@ -3072,6 +3084,7 @@ function doLogin(user) {
     rb.textContent = 'Etažni vlasnik';
     rb.className = 'role-badge role-vlasnik';
     document.getElementById('btn-poveci-nalog').style.display = 'inline-flex';
+    document.getElementById('nav-vlasnik-pregled').style.display = 'inline-flex';
     document.getElementById('nav-glasanje').style.display = 'inline-flex';
     document.getElementById('nav-prijave').style.display = 'inline-flex';
     document.getElementById('nav-izvjestaji').style.display = 'inline-flex';
@@ -3092,7 +3105,7 @@ function doLogin(user) {
   }
 
   popuniMobilniMeni();
-  showPage(user.tip === 'admin' ? 'admin-pregled' : 'glasanje');
+  showPage(user.tip === 'admin' ? 'admin-pregled' : 'vlasnik-pregled');
 }
 
 // Promjena aktivnog ZEV-a za vlasnika (kad ima više nepokretnosti)
@@ -3221,6 +3234,7 @@ function showPage(id) {
 function renderPage(id) {
   if (id === 'admin-pregled') renderAdminPregled();
   if (id === 'admin-zevovi') renderAdminZevovi();
+  if (id === 'vlasnik-pregled') renderVlasnikPregled();
   if (id === 'glasanje') renderGlasanjeVlasnik();
   if (id === 'admin-glasanje') renderAdminGlasanje();
   if (id === 'prijave') renderPrijaveVlasnik();
@@ -4927,6 +4941,105 @@ function obrisiPlanBudzeta(id) {
   toast('Plan obrisan.', 'success');
   renderAdminBudzet();
   window.spremiUFirestore('budzet');
+}
+
+// ─── VLASNIK PREGLED (DASHBOARD) ───────────────────────
+
+function renderVlasnikPregled() {
+  const el = document.getElementById('vlasnik-pregled-sadrzaj');
+  if (!el) return;
+  const zevId = currentUser?.aktivniZev;
+  const zev = DB.zevovi.find(z => z.id === zevId);
+  const vlasnik = DB.vlasnici.find(v => v.kod === currentUser?.kod);
+
+  // ── Glasanja ──
+  const mojiKodovi = [currentUser?.kod, ...(currentUser?.povezaniKodovi||[])];
+  const aktivneAnkete = (DB.ankete||[]).filter(a => !a.zatvorena && new Date(a.krajDatum) >= new Date() && a.zev === zevId);
+  const ukupnoAnketa = (DB.ankete||[]).filter(a => a.zev === zevId).length;
+  const cekaNaGlas = aktivneAnkete.filter(a => !mojiKodovi.some(k => (a.glasali||[]).includes(k))).length;
+
+  // ── Prijave ──
+  const mojePrijave = (DB.prijave||[]).filter(p => mojiKodovi.includes(p.korisnikKod) && p.zev === zevId);
+  const otvorenePrijave = mojePrijave.filter(p => p.status !== 'RIJESENO');
+  const rijesenePrijave = mojePrijave.filter(p => p.status === 'RIJESENO');
+
+  // ── Budžet ──
+  const godina = new Date().getFullYear();
+  const budzet = DB.budzet.find(b => b.zevId === zevId && b.godina === godina);
+  const ukPrihodi = budzet ? (budzet.prihPotrosnja||0)+(budzet.prihInvesticije||0)+(budzet.prihOstaleUplate||0)+(budzet.prihOstalo||0) : 0;
+  const ukRashodi = budzet ? (budzet.rashOdrzavanje||0)+(budzet.rashCiscenje||0)+(budzet.rashEnergija||0)+(budzet.rashInvesticije||0)+(budzet.rashOstalo||0) : 0;
+  const ostvFin = DB.finansijskiPodaci.filter(f => f.zevId === zevId && f.period.endsWith('/'+godina));
+  const ostvUplate = ostvFin.reduce((s,f) => s+(f.uplate||0), 0);
+  const pctPrih = ukPrihodi > 0 ? Math.round(ostvUplate/ukPrihodi*100) : 0;
+
+  // ── Dokumenti ──
+  const brDok = (DB.dokumenti||[]).filter(d => !d.zev || d.zev === zevId).length;
+
+  // ── Kontakti ──
+  const brKont = DB.kontakti.filter(k => k.zev !== '__admin__' && (!k.zev || k.zev === zevId)).length;
+
+  // ── Komšija+ ──
+  const brPonuda = (DB.partneri||[]).length;
+
+  const kartica = (icon, boja, naslov, vrijed, opis, stranica, badge='') => `
+    <div onclick="showPage('${stranica}')" style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:18px;cursor:pointer;transition:box-shadow .15s,transform .15s;position:relative;overflow:hidden"
+      onmouseenter="this.style.boxShadow='0 4px 18px rgba(0,0,0,.12)';this.style.transform='translateY(-2px)'"
+      onmouseleave="this.style.boxShadow='';this.style.transform=''">
+      ${badge ? `<div style="position:absolute;top:12px;right:12px;background:${boja};color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px">${badge}</div>` : ''}
+      <div style="width:40px;height:40px;border-radius:10px;background:${boja}1a;display:flex;align-items:center;justify-content:center;margin-bottom:12px">
+        <i class="ti ${icon}" style="font-size:20px;color:${boja}"></i>
+      </div>
+      <div style="font-size:22px;font-weight:700;line-height:1;margin-bottom:4px">${vrijed}</div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:3px">${naslov}</div>
+      <div style="font-size:11px;color:var(--text3)">${opis}</div>
+    </div>`;
+
+  el.innerHTML = `
+    ${zev ? `<div style="background:linear-gradient(135deg,var(--accent),#1a4a8a);border-radius:14px;padding:20px 24px;margin-bottom:20px;color:#fff">
+      <div style="font-size:11px;opacity:.75;margin-bottom:4px;text-transform:uppercase;letter-spacing:.07em">Aktivna zajednica</div>
+      <div style="font-size:18px;font-weight:700">${zev.naziv}</div>
+      ${zev.adresa ? `<div style="font-size:12px;opacity:.8;margin-top:3px">${zev.adresa}</div>` : ''}
+      ${vlasnik ? `<div style="margin-top:10px;font-size:12px;opacity:.85">Dobrodošli, <strong>${vlasnik.ime}</strong></div>` : ''}
+    </div>` : ''}
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;margin-bottom:20px">
+      ${kartica('ti-checkup-list', 'var(--accent)', 'Glasanje', aktivneAnkete.length, `${ukupnoAnketa} ukupno anketa`, 'glasanje',
+        cekaNaGlas > 0 ? cekaNaGlas+' čeka' : '')}
+      ${kartica('ti-tool', otvorenePrijave.length > 0 ? 'var(--orange,#f59e0b)' : 'var(--green)', 'Moje prijave',
+        otvorenePrijave.length, `${rijesenePrijave.length} riješeno`, 'prijave',
+        otvorenePrijave.length > 0 ? otvorenePrijave.length+' otvoreno' : '')}
+      ${kartica('ti-chart-pie', 'var(--green)', 'Budžet '+godina,
+        budzet ? pctPrih+'%' : '—',
+        budzet ? 'realizacija prihoda' : 'Nema plana za '+godina+'.', 'budzet')}
+      ${kartica('ti-chart-bar', 'var(--purple,#8b5cf6)', 'Izvještaji', ostvFin.length, `perioda u ${godina}.`, 'izvjestaji')}
+      ${kartica('ti-files', 'var(--accent)', 'Dokumenti', brDok, 'dostupnih dokumenata', 'dokumenti')}
+      ${kartica('ti-phone-call', 'var(--teal,#14b8a6)', 'Kontakti', brKont, 'korisnih kontakata', 'kontakti')}
+      ${kartica('ti-discount-2', 'var(--orange,#f59e0b)', 'Komšija+', brPonuda, 'aktivnih ponuda', 'komsija')}
+      ${kartica('ti-message-chatbot', 'var(--purple,#8b5cf6)', 'Savjetnik', 'AI', 'Postavi pitanje', 'savjetnik')}
+    </div>
+
+    ${cekaNaGlas > 0 ? `
+    <div style="background:var(--accent)1a;border:1px solid var(--accent)44;border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="showPage('glasanje')">
+      <i class="ti ti-alert-circle" style="font-size:20px;color:var(--accent);flex-shrink:0"></i>
+      <div>
+        <div style="font-weight:600;font-size:13px">Čeka vas glasanje</div>
+        <div style="font-size:12px;color:var(--text2)">Imate ${cekaNaGlas} aktivn${cekaNaGlas===1?'u':'ih'} anketu na kojima niste glasali</div>
+      </div>
+      <i class="ti ti-chevron-right" style="margin-left:auto;color:var(--text3)"></i>
+    </div>` : ''}
+
+    ${otvorenePrijave.length > 0 ? `
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-weight:700;font-size:13px;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+        <i class="ti ti-tool" style="color:var(--orange,#f59e0b)"></i> Otvorene prijave
+      </div>
+      ${otvorenePrijave.slice(0,3).map(p => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px">
+          <span style="color:var(--text2)">${(p.naslov||p.opis||'Bez naslova').substring(0,55)}${(p.naslov||p.opis||'').length>55?'…':''}</span>
+          <span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:${p.status==='U_TOKU'?'var(--accent)22':p.status==='ZAKAZANO'?'#f0c06022':'var(--bg3)'};color:${p.status==='U_TOKU'?'var(--accent)':p.status==='ZAKAZANO'?'#f0c060':'var(--text3)'}">${p.status==='U_TOKU'?'U toku':p.status==='ZAKAZANO'?'Zakazano':p.status==='RIJESENO'?'Riješeno':'Nova'}</span>
+        </div>`).join('')}
+      ${otvorenePrijave.length > 3 ? `<div style="font-size:11px;color:var(--text3);margin-top:8px;cursor:pointer" onclick="showPage('prijave')">+ još ${otvorenePrijave.length-3} prijava →</div>` : ''}
+    </div>` : ''}`;
 }
 
 // ─── BUDŽET — prikaz za vlasnika ───────────────────────

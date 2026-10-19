@@ -4999,7 +4999,7 @@ function renderVlasnikPregled() {
       <div style="font-size:11px;opacity:.75;margin-bottom:4px;text-transform:uppercase;letter-spacing:.07em">Aktivna zajednica</div>
       <div style="font-size:18px;font-weight:700">${zev.naziv}</div>
       ${zev.adresa ? `<div style="font-size:12px;opacity:.8;margin-top:3px">${zev.adresa}</div>` : ''}
-      ${vlasnik ? `<div style="margin-top:10px;font-size:12px;opacity:.85">Dobrodošli, <strong>${vlasnik.ime}</strong></div>` : ''}
+      ${vlasnik ? `<div style="margin-top:10px;font-size:12px;opacity:.85">Dobrodošli, <strong>${vlasnik.imeVlasnika} ${vlasnik.prezimeVlasnika}</strong></div>` : ''}
     </div>` : ''}
 
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;margin-bottom:20px">

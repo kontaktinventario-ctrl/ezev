@@ -3415,9 +3415,8 @@ function renderGlasanjeVlasnik() {
       opcijeHTML += `<button class="btn btn-primary" style="margin-top:12px" onclick="glasaj('${a.id}', this)">
         <i class="ti ti-check"></i> Potvrdi glas${brojGlasova > 1 ? ` (${brojGlasova} glasa)` : ''}</button>`;
     } else {
-      const glasoviKeys = Object.keys(a.glasovi);
       opcijeHTML = a.opcije.map((op,i) => {
-        const g = (glasoviKeys[i] !== undefined ? a.glasovi[glasoviKeys[i]] : 0) || 0;
+        const g = (a.glasovi[op] !== undefined ? a.glasovi[op] : 0) || 0;
         const pct = ukupno > 0 ? Math.round(g/ukupno*100) : 0;
         return `<div style="margin-bottom:10px">
           <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
@@ -3487,14 +3486,13 @@ function glasaj(anketaId, dugme) {
   );
   const brojGlasova = Math.max(1, prostoriUZevu.length);
 
-  const opcijeKeys = Object.keys(anketa.glasovi);
   const odabraniIndeksi = [];
 
   selected.forEach(s => {
     const idx = parseInt(s.querySelector('input').value);
     odabraniIndeksi.push(idx);
-    const kljuc = opcijeKeys[idx];
-    if (kljuc) anketa.glasovi[kljuc] = (anketa.glasovi[kljuc] || 0) + brojGlasova;
+    const opcijaNaziv = anketa.opcije[idx];
+    if (opcijaNaziv !== undefined) anketa.glasovi[opcijaNaziv] = (anketa.glasovi[opcijaNaziv] || 0) + brojGlasova;
   });
 
   // Označi SVE kodove vlasnika kao glasale (spriječi duplo glasanje)
@@ -3570,7 +3568,7 @@ function prikaziRezultate(anketaId) {
       <span style="color:var(--text2)">${anketa.zevNaziv} · Ukupno: ${ukupno} glasova</span>
     </div>
     ${anketa.opcije.map((op,i) => {
-      const g = (glasoviKeys[i] !== undefined ? anketa.glasovi[glasoviKeys[i]] : 0) || 0;
+      const g = (anketa.glasovi[op] !== undefined ? anketa.glasovi[op] : 0) || 0;
       const pct = ukupno > 0 ? Math.round(g/ukupno*100) : 0;
       return `<div style="margin-bottom:12px">
         <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px">
@@ -3613,7 +3611,7 @@ function exportRezultateGlasanja() {
   if (!win) { toast('Dozvolite pop-up prozore za export PDF-a.', 'error'); return; }
 
   const opcijeHTML = anketa.opcije.map((op, i) => {
-    const g = (glasoviKeys2[i] !== undefined ? anketa.glasovi[glasoviKeys2[i]] : 0) || 0;
+    const g = (anketa.glasovi[op] !== undefined ? anketa.glasovi[op] : 0) || 0;
     const pct = ukupno > 0 ? Math.round(g / ukupno * 100) : 0;
     const barW = pct;
     return `<div style="margin-bottom:14px">
@@ -3719,21 +3717,22 @@ async function rekonstruisiGlasove(id) {
   const detalji = a.detaljiGlasanja || [];
   if (detalji.length === 0) { toast('Nema zabilježenih detalja glasanja za rekonstrukciju.', 'error'); return; }
 
-  // Resetuj sve glasove na 0
-  const keys = Object.keys(a.glasovi);
-  keys.forEach(k => { a.glasovi[k] = 0; });
+  // Resetuj sve glasove na 0 i prevedis tare ključeve na nazive opcija
+  const noviGlasovi = {};
+  a.opcije.forEach(op => { noviGlasovi[op] = 0; });
 
   // Ponovo prebroji iz detaljiGlasanja
   detalji.forEach(d => {
     const odabrane = d.odabraneOpcije || [];
     const brojGlasova = d.brojGlasova || 1;
     odabrane.forEach(opcijaNaziv => {
-      const idx = a.opcije.indexOf(opcijaNaziv);
-      if (idx >= 0 && keys[idx] !== undefined) {
-        a.glasovi[keys[idx]] = (a.glasovi[keys[idx]] || 0) + brojGlasova;
+      if (noviGlasovi[opcijaNaziv] !== undefined) {
+        noviGlasovi[opcijaNaziv] = (noviGlasovi[opcijaNaziv] || 0) + brojGlasova;
       }
     });
   });
+
+  a.glasovi = noviGlasovi;
 
   toast('Glasovi rekonstruisani iz detalja.', 'success');
   renderAdminGlasanje();
@@ -3773,7 +3772,7 @@ function kreirajAnketu() {
   if (opcije.length < 2) { toast('Minimum 2 opcije.', 'error'); return; }
 
   const glasovi = {};
-  opcije.forEach((_, i) => glasovi[String.fromCharCode(97+i) + Date.now()] = 0);
+  opcije.forEach(op => glasovi[op] = 0);
 
   DB.ankete.unshift({
     id: 'a' + Date.now(),

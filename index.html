@@ -3697,9 +3697,24 @@ function exportRezultateGlasanja() {
   toast('PDF se generiše u novom prozoru.', 'success');
 }
 
-function rekonstruisiGlasove(id) {
+async function rekonstruisiGlasove(id) {
+  toast('Učitavam svježe podatke iz baze...', 'info');
+
+  // Uvijek učitaj svježe podatke iz Firestorea prije rekonstrukcije
+  // da ne bi prepisali ispravne podatke koje je neko drugi već snimio
+  try {
+    const { doc: fsDoc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
+    const ref = fsDoc(dbFirestore, 'ezev', 'ankete');
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      primijeniPodatkeIzFirestore('ankete', snap.data().podaci);
+    }
+  } catch(e) {
+    console.warn('Nije moguće učitati svježe podatke, koristim lokalne:', e);
+  }
+
   const a = DB.ankete.find(a => a.id === id);
-  if (!a) return;
+  if (!a) { toast('Anketa nije pronađena.', 'error'); return; }
   const detalji = a.detaljiGlasanja || [];
   if (detalji.length === 0) { toast('Nema zabilježenih detalja glasanja za rekonstrukciju.', 'error'); return; }
 

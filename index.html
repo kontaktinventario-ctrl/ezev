@@ -1933,7 +1933,7 @@ body.admin .admin-only-block { display: block; }
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
-  getFirestore, doc, getDoc, setDoc, onSnapshot
+  getFirestore, doc, getDoc, getDocFromServer, setDoc, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -1963,7 +1963,8 @@ async function ucitajIFirebaseSync() {
   for (const kol of KOLEKCIJE) {
     const ref = doc(dbFirestore, 'ezev', kol);
     try {
-      const snap = await getDoc(ref);
+      // getDocFromServer uvijek ide direktno na server, zaobilazi lokalni keš
+      const snap = await getDocFromServer(ref);
       if (snap.exists()) {
         primijeniPodatkeIzFirestore(kol, snap.data().podaci);
       } else {
@@ -3703,9 +3704,9 @@ async function rekonstruisiGlasove(id) {
   // Uvijek učitaj svježe podatke iz Firestorea prije rekonstrukcije
   // da ne bi prepisali ispravne podatke koje je neko drugi već snimio
   try {
-    const { doc: fsDoc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
+    const { doc: fsDoc, getDocFromServer: gds } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
     const ref = fsDoc(dbFirestore, 'ezev', 'ankete');
-    const snap = await getDoc(ref);
+    const snap = await gds(ref);
     if (snap.exists()) {
       primijeniPodatkeIzFirestore('ankete', snap.data().podaci);
     }

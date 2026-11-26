@@ -3414,9 +3414,9 @@ function renderGlasanjeVlasnik() {
       opcijeHTML += `<button class="btn btn-primary" style="margin-top:12px" onclick="glasaj('${a.id}', this)">
         <i class="ti ti-check"></i> Potvrdi glas${brojGlasova > 1 ? ` (${brojGlasova} glasa)` : ''}</button>`;
     } else {
-      const glasoviArr = Object.values(a.glasovi);
+      const glasoviKeys = Object.keys(a.glasovi);
       opcijeHTML = a.opcije.map((op,i) => {
-        const g = glasoviArr[i] || 0;
+        const g = (glasoviKeys[i] !== undefined ? a.glasovi[glasoviKeys[i]] : 0) || 0;
         const pct = ukupno > 0 ? Math.round(g/ukupno*100) : 0;
         return `<div style="margin-bottom:10px">
           <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
@@ -3542,6 +3542,7 @@ function renderAdminGlasanje() {
           <span class="badge ${zatvorena ? 'badge-gray' : 'badge-green'}">${zatvorena ? 'Zatvoreno' : 'Aktivno'}</span>
           <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
             <button class="btn btn-sm" onclick="prikaziRezultate('${a.id}')"><i class="ti ti-chart-bar"></i> Rezultati</button>
+            <button class="btn btn-sm" onclick="rekonstruisiGlasove('${a.id}')" title="Rekonstruiši glasove iz detalja (ispravlja moguće greške u brojanju)"><i class="ti ti-refresh"></i> Rekonstruiši</button>
             ${!zatvorena ? `<button class="btn btn-sm btn-danger" onclick="zatvoriAnketu('${a.id}')"><i class="ti ti-lock"></i> Zatvori</button>` : ''}
             <button class="btn btn-sm btn-danger" onclick="obrisiAnketu('${a.id}')"><i class="ti ti-trash"></i></button>
           </div>
@@ -3558,8 +3559,8 @@ function prikaziRezultate(anketaId) {
   if (!anketa) return;
   trenutnaAnketaZaExport = anketaId;
 
-  const glasoviArr = Object.values(anketa.glasovi);
-  const ukupno = glasoviArr.reduce((s,v) => s + v, 0);
+  const glasoviKeys = Object.keys(anketa.glasovi);
+  const ukupno = Object.values(anketa.glasovi).reduce((s,v) => s + v, 0);
   const detalji = anketa.detaljiGlasanja || [];
 
   const html = `
@@ -3568,7 +3569,7 @@ function prikaziRezultate(anketaId) {
       <span style="color:var(--text2)">${anketa.zevNaziv} · Ukupno: ${ukupno} glasova</span>
     </div>
     ${anketa.opcije.map((op,i) => {
-      const g = glasoviArr[i] || 0;
+      const g = (glasoviKeys[i] !== undefined ? anketa.glasovi[glasoviKeys[i]] : 0) || 0;
       const pct = ukupno > 0 ? Math.round(g/ukupno*100) : 0;
       return `<div style="margin-bottom:12px">
         <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px">
@@ -3604,14 +3605,14 @@ function exportRezultateGlasanja() {
   const anketa = DB.ankete.find(a => a.id === trenutnaAnketaZaExport);
   if (!anketa) return;
   const detalji = anketa.detaljiGlasanja || [];
-  const glasoviArr = Object.values(anketa.glasovi);
-  const ukupno = glasoviArr.reduce((s,v) => s + v, 0);
+  const glasoviKeys2 = Object.keys(anketa.glasovi);
+  const ukupno = Object.values(anketa.glasovi).reduce((s,v) => s + v, 0);
 
   const win = window.open('', '_blank');
   if (!win) { toast('Dozvolite pop-up prozore za export PDF-a.', 'error'); return; }
 
   const opcijeHTML = anketa.opcije.map((op, i) => {
-    const g = glasoviArr[i] || 0;
+    const g = (glasoviKeys2[i] !== undefined ? anketa.glasovi[glasoviKeys2[i]] : 0) || 0;
     const pct = ukupno > 0 ? Math.round(g / ukupno * 100) : 0;
     const barW = pct;
     return `<div style="margin-bottom:14px">
@@ -3694,6 +3695,33 @@ function exportRezultateGlasanja() {
 </body></html>`);
   win.document.close();
   toast('PDF se generiše u novom prozoru.', 'success');
+}
+
+function rekonstruisiGlasove(id) {
+  const a = DB.ankete.find(a => a.id === id);
+  if (!a) return;
+  const detalji = a.detaljiGlasanja || [];
+  if (detalji.length === 0) { toast('Nema zabilježenih detalja glasanja za rekonstrukciju.', 'error'); return; }
+
+  // Resetuj sve glasove na 0
+  const keys = Object.keys(a.glasovi);
+  keys.forEach(k => { a.glasovi[k] = 0; });
+
+  // Ponovo prebroji iz detaljiGlasanja
+  detalji.forEach(d => {
+    const odabrane = d.odabraneOpcije || [];
+    const brojGlasova = d.brojGlasova || 1;
+    odabrane.forEach(opcijaNaziv => {
+      const idx = a.opcije.indexOf(opcijaNaziv);
+      if (idx >= 0 && keys[idx] !== undefined) {
+        a.glasovi[keys[idx]] = (a.glasovi[keys[idx]] || 0) + brojGlasova;
+      }
+    });
+  });
+
+  toast('Glasovi rekonstruisani iz detalja.', 'success');
+  renderAdminGlasanje();
+  window.spremiUFirestore('ankete');
 }
 
 function zatvoriAnketu(id) {

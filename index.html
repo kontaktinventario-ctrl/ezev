@@ -2069,12 +2069,9 @@ window.__pokreniFirebaseSync = ucitajIFirebaseSync;
 const ADMIN = { username: 'clickpay', password: 'BananaCPS0211!', mustChangePassword: true };
 window.ADMIN = ADMIN;
 
-const KORISNICI = [
-  { kod: '10042', password: 'Vlasnik123!', ime: 'Dušan Simović', mustChangePassword: true },
-  { kod: '10043', password: 'Vlasnik456!', ime: 'Ana Jovanović', mustChangePassword: true },
-  { kod: '10044', password: 'Vlasnik789!', ime: 'Petar Petrović', mustChangePassword: true },
-  { kod: '10045', password: 'Vlasnik999!', ime: 'Dušan Simović', mustChangePassword: true },
-];
+// KORISNICI se učitavaju isključivo iz Firestorea — ovaj niz je namjerno prazan
+// da ne bi prepisao lozinke korisnika pri svakom uploadu novog HTML fajla
+const KORISNICI = [];
 window.KORISNICI = KORISNICI;
 
 const ZEVOVI = {

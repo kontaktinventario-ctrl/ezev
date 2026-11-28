@@ -3807,7 +3807,16 @@ function renderPrijaveVlasnik() {
     prijave = DB.prijave;
   } else {
     const kodovi = getPovezaniKodovi(currentUser?.kod);
-    prijave = DB.prijave.filter(p => p.zev === currentUser?.aktivniZev && kodovi.includes(p.korisnikKod));
+    // Prikaži SVE prijave iz ZEV-a — da se izbjegnu duplikati
+    prijave = DB.prijave.filter(p => p.zev === currentUser?.aktivniZev);
+    // Sortiraj: moje prijave prve, pa ostale
+    prijave.sort((a, b) => {
+      const aMe = kodovi.includes(a.korisnikKod);
+      const bMe = kodovi.includes(b.korisnikKod);
+      if (aMe && !bMe) return -1;
+      if (!aMe && bMe) return 1;
+      return new Date(b.datum) - new Date(a.datum);
+    });
   }
 
   if (prijave.length === 0) {
@@ -3815,11 +3824,17 @@ function renderPrijaveVlasnik() {
     return;
   }
 
-  cont.innerHTML = prijave.map(p => `
+  const kodovi2 = currentUser?.tip !== 'admin' ? getPovezaniKodovi(currentUser?.kod) : [];
+  cont.innerHTML = prijave.map(p => {
+    const mojaPrijava = kodovi2.includes(p.korisnikKod);
+    return `
     <div class="card">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px">
-        <div>
-          <div style="font-size:12px;color:var(--text3);margin-bottom:3px">${p.zevNaziv} · ${new Date(p.datum).toLocaleDateString('bs-BA')}</div>
+        <div style="flex:1">
+          <div style="font-size:12px;color:var(--text3);margin-bottom:3px">
+            ${p.zevNaziv} · ${new Date(p.datum).toLocaleDateString('bs-BA')}
+            ${mojaPrijava ? '<span class="badge badge-green" style="font-size:10px;margin-left:6px">Moja prijava</span>' : `<span style="font-size:11px;color:var(--text3);margin-left:4px">· ${p.korisnikIme||'Etažni vlasnik'}</span>`}
+          </div>
           <div style="font-weight:600;font-size:15px;margin-bottom:4px">${p.naslov}</div>
           <p style="font-size:13px;color:var(--text2)">${p.opis}</p>
         </div>
@@ -3833,7 +3848,8 @@ function renderPrijaveVlasnik() {
           </div>
           <p style="font-size:13px">${p.odgovor}</p>
         </div>` : ''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function renderAdminPrijave() {
